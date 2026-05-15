@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8080/sso/api/auth';
 
 const Login = ({ onLoginSuccess }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [captcha, setCaptcha] = useState('');
@@ -12,6 +16,15 @@ const Login = ({ onLoginSuccess }) => {
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [redirect, setRedirect] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const redirectUrl = params.get('redirect');
+    if (redirectUrl) {
+      setRedirect(redirectUrl);
+    }
+  }, [location.search]);
 
   const fetchCaptcha = async () => {
     try {
@@ -63,8 +76,19 @@ const Login = ({ onLoginSuccess }) => {
       const response = await axios.post(`${API_BASE_URL}/login`, loginData);
       
       if (response.data.success) {
-        localStorage.setItem('token', response.data.token);
-        onLoginSuccess({ username: response.data.username });
+        const ticket = response.data.token;
+        const usernameRes = response.data.username;
+        
+        localStorage.setItem('token', ticket);
+        
+        if (redirect) {
+          const callbackUrl = redirect.endsWith('/') 
+            ? `${redirect}sso/callback` 
+            : `${redirect}/sso/callback`;
+          window.location.href = `${callbackUrl}?ticket=${ticket}&username=${encodeURIComponent(usernameRes)}`;
+        } else {
+          onLoginSuccess({ username: usernameRes });
+        }
       } else {
         setError(response.data.message);
         if (response.data.requireCaptcha && !showCaptcha) {
@@ -148,6 +172,11 @@ const Login = ({ onLoginSuccess }) => {
           {loading ? '登录中...' : '登录'}
         </button>
       </form>
+      
+      <div className="auth-links">
+        <a href="/forgot-password">忘记密码？</a>
+        <a href="/register">没有账号？立即注册</a>
+      </div>
     </div>
   );
 };

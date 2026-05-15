@@ -8,10 +8,10 @@ spring:
   profiles:
     active: dev
 
+user:
+  service:
+    url: http://localhost:8081/user
+
 sso:
-  jwt:
-    secret: sso-secret-key-2024-sso-secret-key-2024-sso-secret-key
+  ticket:
     expiration: 86400000
-  login:
-    max-attempts: 3
-    captcha-enabled-after: 1

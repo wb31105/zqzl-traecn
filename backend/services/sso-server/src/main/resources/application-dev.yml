@@ -1,29 +1,10 @@
 server:
   port: 8080
 
-spring:
-  datasource:
-    url: jdbc:h2:mem:sso_dev_db;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-        format_sql: true
-
 logging:
   level:
     root: INFO
-    com.zqzl.sso: DEBUG
+    com.sso: DEBUG
     org.springframework.security: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
