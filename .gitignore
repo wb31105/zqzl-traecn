@@ -1,0 +1,117 @@
+# =========================
+# IDE / Editor
+# =========================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =========================
+# Maven / Java
+# =========================
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+.mvn/
+mvnw
+mvnw.cmd
+
+# =========================
+# Node / NPM / Yarn
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+dist/
+build/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist/
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.vscode-test/
+*.tsbuildinfo
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+*.log.*
+
+# =========================
+# Database
+# =========================
+*.h2.db
+*.mv.db
+*.trace.db
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# =========================
+# Temporary files
+# =========================
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+*.old
+
+# =========================
+# OS specific
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =========================
+# Testing
+# =========================
+coverage/
+.nyc_output/
+.coverage
+*.lcov
+
+# =========================
+# Spring Boot
+# =========================
+spring-boot-jarmode-layertools

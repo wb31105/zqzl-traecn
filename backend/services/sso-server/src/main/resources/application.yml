@@ -1,0 +1,17 @@
+server:
+  servlet:
+    context-path: /sso
+
+spring:
+  application:
+    name: sso-server
+  profiles:
+    active: dev
+
+sso:
+  jwt:
+    secret: sso-secret-key-2024-sso-secret-key-2024-sso-secret-key
+    expiration: 86400000
+  login:
+    max-attempts: 3
+    captcha-enabled-after: 1
