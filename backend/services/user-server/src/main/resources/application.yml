@@ -1,0 +1,17 @@
+server:
+  servlet:
+    context-path: /user
+
+spring:
+  application:
+    name: user-server
+  profiles:
+    active: dev
+
+user:
+  jwt:
+    secret: user-secret-key-2024-user-secret-key-2024-user-secret-key
+    expiration: 86400000
+  login:
+    max-attempts: 3
+    captcha-enabled-after: 1

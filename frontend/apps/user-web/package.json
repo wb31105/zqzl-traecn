@@ -1,0 +1,43 @@
+{
+  "name": "sso-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.0",
+    "dotenv-cli": "^7.3.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.15.1",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "dotenv -e .env.development react-scripts start",
+    "start:dev": "dotenv -e .env.development react-scripts start",
+    "start:test": "dotenv -e .env.test react-scripts start",
+    "start:prod": "dotenv -e .env.production react-scripts start",
+    "build": "dotenv -e .env.production react-scripts build",
+    "build:dev": "dotenv -e .env.development react-scripts build",
+    "build:test": "dotenv -e .env.test react-scripts build",
+    "build:prod": "dotenv -e .env.production react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
