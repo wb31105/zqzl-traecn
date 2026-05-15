@@ -1,0 +1,10 @@
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/entity/User.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/service/UserService.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/dto/LoginResponse.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/service/CaptchaService.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/dto/LoginRequest.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/util/JwtUtil.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/config/SecurityConfig.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/repository/UserRepository.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/controller/AuthController.java
+/Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/src/main/java/com/sso/SsoServerApplication.java
