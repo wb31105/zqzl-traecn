@@ -18,10 +18,14 @@ public class TicketService {
     }
 
     public String validateTicket(String ticket) {
-        return ticketStore.remove(ticket);
+        return ticketStore.get(ticket);
     }
 
     public boolean isValidTicket(String ticket) {
         return ticketStore.containsKey(ticket);
+    }
+
+    public void removeTicket(String ticket) {
+        ticketStore.remove(ticket);
     }
 }

@@ -21,7 +21,7 @@ public class AuthService {
     private CaptchaService captchaService;
 
     private final ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
-    private static final int MAX_ATTEMPTS_BEFORE_CAPTCHA = 3;
+    private static final int MAX_ATTEMPTS_BEFORE_CAPTCHA = 1;
 
     public LoginResponse login(LoginRequest request) {
         if (shouldShowCaptcha(request.getUsername())) {
@@ -31,13 +31,16 @@ public class AuthService {
             if (!captchaService.validateCaptcha(request.getCaptchaKey(), request.getCaptcha())) {
                 return new LoginResponse(false, "验证码错误", null, true, null);
             }
+            captchaService.removeCaptcha(request.getCaptchaKey());
         }
+
+        request.setCaptcha(null);
+        request.setCaptchaKey(null);
 
         LoginResponse userResponse = userServiceClient.validateLogin(request);
         
         if (userResponse.isSuccess()) {
             loginAttempts.remove(request.getUsername());
-            captchaService.removeCaptcha(request.getCaptchaKey());
             
             String ticket = ticketService.generateTicket(userResponse.getUsername());
             return new LoginResponse(
@@ -49,7 +52,6 @@ public class AuthService {
             );
         } else {
             incrementLoginAttempts(request.getUsername());
-            captchaService.removeCaptcha(request.getCaptchaKey());
         }
         
         userResponse.setRequireCaptcha(shouldShowCaptcha(request.getUsername()));
@@ -64,8 +66,10 @@ public class AuthService {
             return new RegisterResponse(false, "验证码错误");
         }
         
+        request.setCaptcha(null);
+        request.setCaptchaKey(null);
+        
         RegisterResponse response = userServiceClient.register(request);
-        captchaService.removeCaptcha(request.getCaptchaKey());
         return response;
     }
 
@@ -77,8 +81,10 @@ public class AuthService {
             return new ForgotPasswordResponse(false, "验证码错误");
         }
         
+        request.setCaptcha(null);
+        request.setCaptchaKey(null);
+        
         ForgotPasswordResponse response = userServiceClient.forgotPassword(request);
-        captchaService.removeCaptcha(request.getCaptchaKey());
         return response;
     }
 
@@ -97,6 +103,10 @@ public class AuthService {
     }
 
     public String validateTicket(String ticket) {
-        return ticketService.validateTicket(ticket);
+        String username = ticketService.validateTicket(ticket);
+        if (username != null) {
+            ticketService.removeTicket(ticket);
+        }
+        return username;
     }
 }

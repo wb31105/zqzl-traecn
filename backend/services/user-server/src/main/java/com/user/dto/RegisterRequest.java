@@ -23,9 +23,12 @@ public class RegisterRequest {
     private String email;
 
     @Size(max = 20, message = "手机号长度不能超过20个字符")
-    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确", flags = {Pattern.Flag.CASE_INSENSITIVE})
+    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
     private String phone;
 
     @Size(max = 50, message = "昵称长度不能超过50个字符")
     private String nickname;
+
+    private String captcha;
+    private String captchaKey;
 }

@@ -58,16 +58,6 @@ public class UserService {
             return new LoginResponse(false, "账号已被禁用", null, false, null);
         }
 
-        if (user.getLoginAttempts() >= captchaEnabledAfter) {
-            if (request.getCaptcha() == null || request.getCaptchaKey() == null) {
-                return new LoginResponse(false, "请输入验证码", null, true, user.getUsername());
-            }
-            
-            if (!captchaService.validateCaptcha(request.getCaptchaKey(), request.getCaptcha())) {
-                return new LoginResponse(false, "验证码错误", null, true, user.getUsername());
-            }
-        }
-
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             user.setLoginAttempts(user.getLoginAttempts() + 1);
             userRepository.save(user);
@@ -79,10 +69,6 @@ public class UserService {
         user.setLoginAttempts(0);
         user.setLastLoginTime(LocalDateTime.now());
         userRepository.save(user);
-
-        if (request.getCaptchaKey() != null) {
-            captchaService.removeCaptcha(request.getCaptchaKey());
-        }
 
         String token = jwtUtil.generateToken(user.getUsername());
         return new LoginResponse(true, "登录成功", token, false, user.getUsername());

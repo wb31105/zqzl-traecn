@@ -245,3 +245,14 @@ body {
 .auth-links a:hover {
   text-decoration: underline;
 }
+
+.error-input {
+  border-color: #f44336 !important;
+}
+
+.field-error {
+  color: #f44336;
+  font-size: 12px;
+  margin-top: 5px;
+  display: block;
+}

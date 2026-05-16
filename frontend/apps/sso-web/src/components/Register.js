@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 function Register() {
@@ -15,6 +15,7 @@ function Register() {
   const [captchaImage, setCaptchaImage] = useState('');
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const formRef = useRef(null);
 
   useEffect(() => {
     loadCaptcha();
@@ -37,9 +38,9 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
-    
+
     if (formData.password !== formData.confirmPassword) {
-      setMessage('两次输入的密码不一致');
+      alert('两次输入的密码不一致');
       return;
     }
 
@@ -77,7 +78,7 @@ function Register() {
       <div className="auth-card">
         <h2>用户注册</h2>
         {message && <div className="error-message">{message}</div>}
-        <form onSubmit={handleSubmit}>
+        <form ref={formRef} onSubmit={handleSubmit}>
           <div className="form-group">
             <label>用户名 *</label>
             <input
@@ -87,6 +88,8 @@ function Register() {
               onChange={handleChange}
               placeholder="3-50个字符，字母数字下划线"
               required
+              pattern="^[a-zA-Z0-9_]{3,50}$"
+              title="用户名长度必须在3-50个字符之间，只能包含字母、数字和下划线"
             />
           </div>
           <div className="form-row">
@@ -99,6 +102,8 @@ function Register() {
                 onChange={handleChange}
                 placeholder="6-100个字符"
                 required
+                pattern=".{6,100}"
+                title="密码长度必须在6-100个字符之间"
               />
             </div>
             <div className="form-group half">
@@ -110,6 +115,8 @@ function Register() {
                 onChange={handleChange}
                 placeholder="再次输入密码"
                 required
+                pattern=".{6,100}"
+                title="密码长度必须在6-100个字符之间"
               />
             </div>
           </div>
@@ -122,6 +129,7 @@ function Register() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="请输入邮箱"
+                title="请输入有效的邮箱地址"
               />
             </div>
             <div className="form-group half">
@@ -132,6 +140,8 @@ function Register() {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="中国大陆手机号"
+                pattern="^1[3-9]\d{9}$"
+                title="手机号格式不正确，请输入11位中国大陆手机号"
               />
             </div>
           </div>
@@ -143,6 +153,8 @@ function Register() {
               value={formData.nickname}
               onChange={handleChange}
               placeholder="请输入昵称"
+              maxLength={50}
+              title="昵称长度不能超过50个字符"
             />
           </div>
           <div className="form-group captcha-group">
@@ -155,6 +167,7 @@ function Register() {
                 onChange={handleChange}
                 placeholder="请输入验证码"
                 required
+                title="请输入验证码"
               />
               <img 
                 src={captchaImage} 

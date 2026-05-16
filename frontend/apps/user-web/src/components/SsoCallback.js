@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 const SSO_WEB_URL = 'http://localhost:3001';
 const USER_SERVER_URL = 'http://localhost:8081/user';
 
 const SsoCallback = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,6 +15,8 @@ const SsoCallback = () => {
     const ticket = params.get('ticket');
     const username = params.get('username');
 
+    console.log('SsoCallback - ticket:', ticket, 'username:', username);
+
     if (!ticket) {
       setError('缺少票据参数');
       setLoading(false);
@@ -23,20 +24,25 @@ const SsoCallback = () => {
     }
 
     validateTicket(ticket, username);
-  }, [location.search, navigate]);
+  }, [location.search]);
 
   const validateTicket = async (ticket, username) => {
     try {
+      console.log('开始验证票据:', ticket);
       const response = await axios.get(`${USER_SERVER_URL}/api/sso/validate-ticket`, {
         params: { ticket }
       });
 
+      console.log('票据验证响应:', response.data);
+
       if (response.data.success) {
         localStorage.setItem('sso_token', ticket);
         localStorage.setItem('username', username || response.data.username);
-        navigate('/users');
+        console.log('验证成功，跳转到 /users');
+        window.location.href = '/users';
       } else {
         setError(response.data.message || '票据验证失败');
+        console.log('验证失败:', response.data.message);
         setTimeout(() => {
           window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin)}`;
         }, 2000);

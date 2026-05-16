@@ -82,9 +82,8 @@ const Login = ({ onLoginSuccess }) => {
         localStorage.setItem('token', ticket);
         
         if (redirect) {
-          const callbackUrl = redirect.endsWith('/') 
-            ? `${redirect}sso/callback` 
-            : `${redirect}/sso/callback`;
+          const url = new URL(redirect);
+          const callbackUrl = `${url.origin}/sso/callback`;
           window.location.href = `${callbackUrl}?ticket=${ticket}&username=${encodeURIComponent(usernameRes)}`;
         } else {
           onLoginSuccess({ username: usernameRes });

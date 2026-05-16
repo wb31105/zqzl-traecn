@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -48,11 +49,17 @@ public class AuthController {
     }
 
     @GetMapping("/validate-ticket")
-    public ResponseEntity<String> validateTicket(@RequestParam String ticket) {
+    public ResponseEntity<Map<String, Object>> validateTicket(@RequestParam String ticket) {
         String username = authService.validateTicket(ticket);
+        Map<String, Object> result = new HashMap<>();
         if (username != null) {
-            return ResponseEntity.ok(username);
+            result.put("success", true);
+            result.put("username", username);
+            result.put("message", "验证成功");
+        } else {
+            result.put("success", false);
+            result.put("message", "无效的票据");
         }
-        return ResponseEntity.badRequest().body("无效的票据");
+        return ResponseEntity.ok(result);
     }
 }
