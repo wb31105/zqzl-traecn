@@ -50,4 +50,10 @@ public class AuthController {
         boolean shouldShow = userService.shouldShowCaptcha(username);
         return ResponseEntity.ok(shouldShow);
     }
+
+    @GetMapping("/find-user")
+    public ResponseEntity<Map<String, Object>> findUserByIdentifier(@RequestParam String identifier) {
+        Map<String, Object> result = userService.findUserByIdentifier(identifier);
+        return ResponseEntity.ok(result);
+    }
 }

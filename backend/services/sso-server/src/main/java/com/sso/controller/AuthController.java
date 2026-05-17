@@ -24,6 +24,18 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/forgot-password/verify")
+    public ResponseEntity<Map<String, Object>> verifyForgotPassword(@Valid @RequestBody ForgotPasswordVerifyRequest request) {
+        Map<String, Object> result = authService.verifyForgotPassword(request);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/send-verification-code")
+    public ResponseEntity<Map<String, Object>> sendVerificationCode(@Valid @RequestBody SendVerificationCodeRequest request) {
+        Map<String, Object> result = authService.sendVerificationCode(request);
+        return ResponseEntity.ok(result);
+    }
+
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
         RegisterResponse response = authService.register(request);

@@ -148,30 +148,34 @@ sequenceDiagram
     participant DB as 数据库
 
     User->>SSO_Web: 1. 点击注册，跳转 /register
-    SSO_Web->>SSO_Server: 2. GET /sso/api/auth/captcha
-    Note over SSO_Server: 内部调用 CaptchaService.generateCaptcha()
-    Note over SSO_Server: 生成 UUID key + 4位随机码 + 图片base64
-    Note over SSO_Server: 存入 ConcurrentHashMap
-    SSO_Server-->>SSO_Web: 返回 {captchaKey, captchaImage}
     
-    User->>SSO_Web: 3. 填写注册表单
-    Note over SSO_Web: 字段: username, password, confirmPassword, email, phone, nickname, captcha
+    User->>SSO_Web: 2. 填写注册表单
+    Note over SSO_Web: 字段: username, password, confirmPassword, email(可选), phone(必填), nickname(可选)
     
-    SSO_Web->>SSO_Web: 4. 前端表单验证
+    SSO_Web->>SSO_Web: 3. 前端表单验证
     Note over SSO_Web: - 密码一致<br>- 用户名格式<br>- 邮箱格式<br>- 手机号格式
     
-    SSO_Web->>SSO_Server: 5. POST /sso/api/auth/register
+    SSO_Web->>SSO_Server: 4. POST /sso/api/auth/send-verification-code
+    Note over SSO_Web,SSO_Server: 发送 {phone, type: 'register'}
     
-    Note over SSO_Server: 内部调用 CaptchaService.validateCaptcha()
-    alt 验证码错误
-        SSO_Server-->>SSO_Web: {success: false, message: "验证码错误"}
-        SSO_Web->>SSO_Server: GET /sso/api/auth/captcha (刷新)
-        SSO_Web->>User: 显示错误，刷新验证码
+    Note over SSO_Server: 内部调用 VerificationCodeService.generateAndSendCode()
+    Note over SSO_Server: 生成 6位数字验证码<br>存入 ConcurrentHashMap<br>有效期5分钟
+    SSO_Server-->>SSO_Web: 返回 {success: true, message: "验证码已发送"}
+    Note over SSO_Server: 控制台打印验证码（模拟短信）
+    
+    User->>SSO_Web: 5. 输入收到的验证码
+    
+    SSO_Web->>SSO_Server: 6. POST /sso/api/auth/register
+    
+    Note over SSO_Server: 内部调用 VerificationCodeService.verifyCode()
+    alt 验证码错误或已过期
+        SSO_Server-->>SSO_Web: {success: false, message: "验证码错误或已过期"}
+        SSO_Web->>User: 显示错误
     end
     
-    Note over SSO_Server: 验证通过，移除 captchaKey
+    Note over SSO_Server: 验证通过，移除验证码
     
-    SSO_Server->>User_Server: 6. POST /user/api/auth/register (RestTemplate)
+    SSO_Server->>User_Server: 7. POST /user/api/auth/register (RestTemplate)
     Note over SSO_Server,User_Server: UserServiceClient.register()
     
     Note over User_Server: 内部调用 UserService.register()
@@ -182,17 +186,20 @@ sequenceDiagram
     else 用户名已存在
         User_Server-->>SSO_Server: {success: false, message: "用户名已存在"}
         SSO_Server-->>SSO_Web: 返回错误
+    else 手机号已被注册
+        User_Server-->>SSO_Server: {success: false, message: "手机号已被注册"}
+        SSO_Server-->>SSO_Web: 返回错误
     else 邮箱已被注册
         User_Server-->>SSO_Server: {success: false, message: "邮箱已被注册"}
         SSO_Server-->>SSO_Web: 返回错误
     end
     
-    User_Server->>DB: 7. INSERT INTO user (...)
+    User_Server->>DB: 8. INSERT INTO user (...)
     Note over User_Server,DB: - password 用 BCrypt 加密<br>- role = 'USER'<br>- enabled = true<br>- login_attempts = 0
     
     DB-->>User_Server: 返回保存的用户记录
     User_Server-->>SSO_Server: {success: true, message: "注册成功"}
-    SSO_Server-->>SSO_Web: 8. 返回成功响应
+    SSO_Server-->>SSO_Web: 9. 返回成功响应
     SSO_Web->>User: 显示成功页面，提供"返回登录"链接
 ```
 
@@ -200,9 +207,16 @@ sequenceDiagram
 
 | 步骤 | 接口 | 方法 | 所属服务 |
 |------|------|------|----------|
-| 获取验证码 | `/sso/api/auth/captcha` | GET | sso-server |
+| 发送手机验证码 | `/sso/api/auth/send-verification-code` | POST | sso-server |
 | 提交注册 | `/sso/api/auth/register` | POST | sso-server |
 | 内部调用注册 | `/user/api/auth/register` | POST | user-server |
+
+### 流程特点
+
+- ✅ 手机号为必填项，用于接收验证码
+- ✅ 邮箱为可选项
+- ✅ 通过手机验证码验证用户身份，防止恶意注册
+- ✅ 验证码有效期5分钟
 
 ---
 
@@ -223,44 +237,98 @@ sequenceDiagram
     Note over SSO_Server: 内部调用 CaptchaService.generateCaptcha()
     SSO_Server-->>SSO_Web: 返回 {captchaKey, captchaImage}
     
-    User->>SSO_Web: 3. 填写重置密码表单
-    Note over SSO_Web: 字段: username, email(可选), newPassword, captcha
+    User->>SSO_Web: 3. 第一步：验证身份
+    Note over SSO_Web: 字段: identifier(用户名/手机号/邮箱), captcha
     
-    SSO_Web->>SSO_Server: 4. POST /sso/api/auth/forgot-password
+    SSO_Web->>SSO_Server: 4. POST /sso/api/auth/forgot-password/verify
     
     Note over SSO_Server: 内部调用 CaptchaService.validateCaptcha()
-    alt 验证码错误
-        SSO_Server-->>SSO_Web: {success: false, message: "验证码错误"}
+    alt 图形验证码错误
+        SSO_Server-->>SSO_Web: {success: false, message: "图形验证码错误"}
         SSO_Web->>SSO_Server: 刷新验证码
         SSO_Web->>User: 显示错误
     end
     
-    Note over SSO_Server: 验证通过，移除 captchaKey
+    Note over SSO_Server: 图形验证码验证通过，移除 captchaKey
     
-    SSO_Server->>User_Server: 5. POST /user/api/auth/forgot-password (RestTemplate)
-    Note over SSO_Server,User_Server: UserServiceClient.forgotPassword()
+    SSO_Server->>User_Server: 5. GET /user/api/auth/find-user?identifier=xxx
+    Note over SSO_Server,User_Server: UserServiceClient.findUserByIdentifier()
     
-    Note over User_Server: 内部调用 UserService.forgotPassword()
+    Note over User_Server: 内部调用 UserService.findUserByIdentifier()
+    Note over User_Server: 根据identifier自动判断类型<br>含@视为邮箱<br>1开头11位视为手机号<br>否则视为用户名
     
-    User_Server->>DB: 6. SELECT * FROM user WHERE username = ?
+    User_Server->>DB: 6. SELECT * FROM user WHERE username=? OR phone=? OR email=?
     DB-->>User_Server: 返回用户记录
     
     alt 用户不存在
         User_Server-->>SSO_Server: {success: false, message: "用户不存在"}
         SSO_Server-->>SSO_Web: 返回错误
-    else 提供了邮箱但不匹配
-        User_Server-->>SSO_Server: {success: false, message: "邮箱不匹配"}
+    end
+    
+    Note over SSO_Server: 生成 verifyToken (UUID)<br>存入 ConcurrentHashMap<br>有效期15分钟<br>关联用户的username/email/phone
+    
+    SSO_Server-->>SSO_Web: 7. 返回 {success: true, verifyToken, email, phone}
+    
+    User->>SSO_Web: 8. 第二步：重置密码
+    Note over SSO_Web: 字段: newPassword, confirmPassword, verificationCode
+    
+    SSO_Web->>SSO_Server: 9. POST /sso/api/auth/send-verification-code
+    Note over SSO_Web,SSO_Server: 根据第一步找到的用户手机号发送验证码
+    
+    Note over SSO_Server: 发送手机验证码（控制台打印）
+    
+    User->>SSO_Web: 10. 输入手机验证码
+    
+    SSO_Web->>SSO_Server: 11. POST /sso/api/auth/forgot-password
+    Note over SSO_Web,SSO_Server: {newPassword, confirmPassword, verificationCode, verifyToken}
+    
+    Note over SSO_Server: 验证 verifyToken 是否有效
+    alt verifyToken 无效或已过期
+        SSO_Server-->>SSO_Web: {success: false, message: "验证已过期，请重新验证"}
+    end
+    
+    Note over SSO_Server: 验证手机验证码
+    alt 手机验证码错误或已过期
+        SSO_Server-->>SSO_Web: {success: false, message: "验证码错误或已过期"}
+    end
+    
+    SSO_Server->>User_Server: 12. POST /user/api/auth/forgot-password (RestTemplate)
+    
+    Note over User_Server: 内部调用 UserService.forgotPassword()
+    
+    alt 两次密码不一致
+        User_Server-->>SSO_Server: {success: false, message: "两次输入的密码不一致"}
         SSO_Server-->>SSO_Web: 返回错误
     end
     
-    User_Server->>DB: 7. UPDATE user SET password=?, login_attempts=0
+    User_Server->>DB: 13. UPDATE user SET password=?, login_attempts=0
     Note over User_Server,DB: 新密码使用 BCrypt 加密
     
     DB-->>User_Server: 更新成功
     User_Server-->>SSO_Server: {success: true, message: "密码重置成功"}
-    SSO_Server-->>SSO_Web: 8. 返回成功响应
+    SSO_Server-->>SSO_Web: 14. 返回成功响应
     SSO_Web->>User: 显示成功页面，提供"返回登录"链接
 ```
+
+### 真实接口说明
+
+| 步骤 | 接口 | 方法 | 所属服务 |
+|------|------|------|----------|
+| 获取图形验证码 | `/sso/api/auth/captcha` | GET | sso-server |
+| 第一步：验证身份 | `/sso/api/auth/forgot-password/verify` | POST | sso-server |
+| 查找用户（内部） | `/user/api/auth/find-user` | GET | user-server |
+| 发送手机验证码 | `/sso/api/auth/send-verification-code` | POST | sso-server |
+| 第二步：提交重置 | `/sso/api/auth/forgot-password` | POST | sso-server |
+| 内部调用重置密码 | `/user/api/auth/forgot-password` | POST | user-server |
+
+### 流程特点
+
+- ✅ 两步式验证，安全性更高
+- ✅ 第一步只需要输入用户名/手机号/邮箱（三选一）+ 图形验证码
+- ✅ 后端自动识别用户输入的identifier类型
+- ✅ 第二步通过手机验证码确保是用户本人操作
+- ✅ verifyToken 有效期15分钟
+- ✅ 必须输入两次密码确认，防止输入错误
 
 ---
 
@@ -567,7 +635,9 @@ graph TD
     
     SSO_Server -->|RestTemplate HTTP| User_Server
     
-    SSO_Server -->|内存 Map| CAPTCHA[验证码存储]
+    SSO_Server -->|内存 Map| CAPTCHA[图形验证码存储]
+    SSO_Server -->|内存 Map| VERIFICATION_CODE[手机验证码存储]
+    SSO_Server -->|内存 Map| VERIFY_TOKEN[重置密码验证Token]
     SSO_Server -->|内存 Map| TICKET[票据存储]
     SSO_Server -->|内存 Map| ATTEMPTS[登录失败计数]
     

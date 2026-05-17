@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 
 function Register() {
@@ -6,33 +6,52 @@ function Register() {
     username: '',
     password: '',
     confirmPassword: '',
-    email: '',
     phone: '',
-    nickname: '',
-    captcha: '',
-    captchaKey: ''
+    verificationCode: ''
   });
-  const [captchaImage, setCaptchaImage] = useState('');
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
-  const formRef = useRef(null);
-
-  useEffect(() => {
-    loadCaptcha();
-  }, []);
-
-  const loadCaptcha = async () => {
-    try {
-      const response = await axios.get('http://localhost:8080/sso/api/auth/captcha');
-      setCaptchaImage(response.data.captchaImage);
-      setFormData(prev => ({ ...prev, captchaKey: response.data.captchaKey }));
-    } catch (error) {
-      console.error('加载验证码失败', error);
-    }
-  };
+  const [countdown, setCountdown] = useState(0);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const sendVerificationCode = async () => {
+    if (!formData.phone) {
+      setMessage('请先输入手机号');
+      return;
+    }
+    if (!/^1[3-9]\d{9}$/.test(formData.phone)) {
+      setMessage('手机号格式不正确');
+      return;
+    }
+
+    try {
+      const response = await axios.post('http://localhost:8080/sso/api/auth/send-verification-code', {
+        phone: formData.phone,
+        type: 'register'
+      });
+      
+      if (response.data.success) {
+        setMessage('验证码已发送到手机，请注意查收！验证码有效期5分钟');
+        setCountdown(60);
+        
+        const timer = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        setMessage(response.data.message || '发送失败');
+      }
+    } catch (error) {
+      setMessage(error.response?.data?.message || '发送失败，请重试');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -40,7 +59,7 @@ function Register() {
     setMessage('');
 
     if (formData.password !== formData.confirmPassword) {
-      alert('两次输入的密码不一致');
+      setMessage('两次输入的密码不一致');
       return;
     }
 
@@ -51,11 +70,9 @@ function Register() {
         setMessage('注册成功！');
       } else {
         setMessage(response.data.message || '注册失败');
-        loadCaptcha();
       }
     } catch (error) {
       setMessage(error.response?.data?.message || '注册失败，请重试');
-      loadCaptcha();
     }
   };
 
@@ -77,8 +94,8 @@ function Register() {
     <div className="auth-container">
       <div className="auth-card">
         <h2>用户注册</h2>
-        {message && <div className="error-message">{message}</div>}
-        <form ref={formRef} onSubmit={handleSubmit}>
+        {message && <div className={message.includes('成功') ? 'success-message' : 'error-message'}>{message}</div>}
+        <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>用户名 *</label>
             <input
@@ -92,6 +109,7 @@ function Register() {
               title="用户名长度必须在3-50个字符之间，只能包含字母、数字和下划线"
             />
           </div>
+          
           <div className="form-row">
             <div className="form-group half">
               <label>密码 *</label>
@@ -120,64 +138,46 @@ function Register() {
               />
             </div>
           </div>
-          <div className="form-row">
-            <div className="form-group half">
-              <label>邮箱</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="请输入邮箱"
-                title="请输入有效的邮箱地址"
-              />
-            </div>
-            <div className="form-group half">
-              <label>手机号</label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="中国大陆手机号"
-                pattern="^1[3-9]\d{9}$"
-                title="手机号格式不正确，请输入11位中国大陆手机号"
-              />
-            </div>
-          </div>
+          
           <div className="form-group">
-            <label>昵称</label>
+            <label>手机号 *</label>
             <input
-              type="text"
-              name="nickname"
-              value={formData.nickname}
+              type="tel"
+              name="phone"
+              value={formData.phone}
               onChange={handleChange}
-              placeholder="请输入昵称"
-              maxLength={50}
-              title="昵称长度不能超过50个字符"
+              placeholder="请输入11位手机号"
+              required
+              pattern="^1[3-9]\d{9}$"
+              title="手机号格式不正确，请输入11位中国大陆手机号"
             />
           </div>
-          <div className="form-group captcha-group">
+          
+          <div className="form-group verification-group">
             <label>验证码 *</label>
-            <div className="captcha-container">
+            <div className="verification-container">
               <input
                 type="text"
-                name="captcha"
-                value={formData.captcha}
+                name="verificationCode"
+                value={formData.verificationCode}
                 onChange={handleChange}
-                placeholder="请输入验证码"
+                placeholder="请输入6位验证码"
                 required
-                title="请输入验证码"
+                maxLength={6}
+                pattern="\d{6}"
+                title="请输入6位数字验证码"
               />
-              <img 
-                src={captchaImage} 
-                alt="验证码" 
-                onClick={loadCaptcha}
-                title="点击刷新验证码"
-                className="captcha-image"
-              />
+              <button
+                type="button"
+                className="btn btn-code"
+                onClick={sendVerificationCode}
+                disabled={countdown > 0}
+              >
+                {countdown > 0 ? `${countdown}秒后重发` : '发送验证码'}
+              </button>
             </div>
           </div>
+          
           <button type="submit" className="btn btn-primary btn-block">
             注册
           </button>

@@ -14,7 +14,9 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class UserService {
@@ -41,6 +43,7 @@ public class UserService {
             user.setUsername("admin");
             user.setPassword(passwordEncoder.encode("admin123"));
             user.setEmail("admin@user.com");
+            user.setPhone("13800138000");
             user.setNickname("管理员");
             user.setRole("ADMIN");
             userRepository.save(user);
@@ -79,6 +82,31 @@ public class UserService {
         return user != null && user.getLoginAttempts() >= captchaEnabledAfter;
     }
 
+    public Map<String, Object> findUserByIdentifier(String identifier) {
+        Map<String, Object> result = new ConcurrentHashMap<>();
+        User user = null;
+        
+        if (identifier.contains("@")) {
+            user = userRepository.findByEmail(identifier).orElse(null);
+        } else if (identifier.matches("^1[3-9]\\d{9}$")) {
+            user = userRepository.findByPhone(identifier).orElse(null);
+        } else {
+            user = userRepository.findByUsername(identifier).orElse(null);
+        }
+        
+        if (user == null) {
+            result.put("success", false);
+            result.put("message", "用户不存在");
+            return result;
+        }
+        
+        result.put("success", true);
+        result.put("username", user.getUsername());
+        result.put("email", user.getEmail());
+        result.put("phone", user.getPhone());
+        return result;
+    }
+
     public ApiResponse<UserResponse> register(RegisterRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             return ApiResponse.error("两次输入的密码不一致");
@@ -88,16 +116,15 @@ public class UserService {
             return ApiResponse.error("用户名已存在");
         }
 
-        if (StringUtils.hasText(request.getEmail()) && userRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ApiResponse.error("邮箱已被注册");
+        if (userRepository.findByPhone(request.getPhone()).isPresent()) {
+            return ApiResponse.error("手机号已被注册");
         }
 
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
-        user.setNickname(request.getNickname() != null ? request.getNickname() : request.getUsername());
+        user.setNickname(request.getUsername());
         user.setRole("USER");
         user.setEnabled(true);
 
@@ -106,13 +133,26 @@ public class UserService {
     }
 
     public ApiResponse<String> forgotPassword(ForgotPasswordRequest request) {
-        User user = userRepository.findByUsername(request.getUsername()).orElse(null);
+        User user = null;
+        
+        if (StringUtils.hasText(request.getUsername())) {
+            user = userRepository.findByUsername(request.getUsername()).orElse(null);
+        } else if (StringUtils.hasText(request.getEmail())) {
+            user = userRepository.findByEmail(request.getEmail()).orElse(null);
+        } else if (StringUtils.hasText(request.getPhone())) {
+            user = userRepository.findByPhone(request.getPhone()).orElse(null);
+        }
+        
         if (user == null) {
             return ApiResponse.error("用户不存在");
         }
 
         if (StringUtils.hasText(request.getEmail()) && !request.getEmail().equals(user.getEmail())) {
             return ApiResponse.error("邮箱不匹配");
+        }
+
+        if (StringUtils.hasText(request.getPhone()) && !request.getPhone().equals(user.getPhone())) {
+            return ApiResponse.error("手机号不匹配");
         }
 
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {

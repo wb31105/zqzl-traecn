@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Map;
+
 @Component
 public class UserServiceClient {
 
@@ -30,5 +32,11 @@ public class UserServiceClient {
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
         String url = userServiceUrl + "/api/auth/forgot-password";
         return restTemplate.postForObject(url, request, ForgotPasswordResponse.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> findUserByIdentifier(String identifier) {
+        String url = userServiceUrl + "/api/auth/find-user?identifier=" + identifier;
+        return restTemplate.getForObject(url, Map.class);
     }
 }
