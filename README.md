@@ -54,14 +54,57 @@ H2 Database
 
 ## 快速开始
 
-### 1. 构建框架层（首次必须执行）
+### 端口分配
+
+| 服务 | 端口 | 访问地址 |
+|------|------|----------|
+| SSO 后端服务 | 8080 | http://localhost:8080/sso |
+| User 后端服务 | 8081 | http://localhost:8081/user |
+| SSO 前端服务 | 3000 | http://localhost:3000 |
+| User 前端服务 | 3031 | http://localhost:3031 |
+
+### 方式一：一键启动（推荐）
+
+项目根目录提供了一键启动脚本 `start-all.sh`，执行后：
+1. 自动关闭占用端口的服务
+2. 自动编译架构项目和后端服务
+3. 自动安装前端依赖
+4. 在4个独立的IDE终端中自动启动所有服务
+
+```bash
+# 进入项目根目录
+cd /Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn
+
+# 一键启动所有服务
+./start-all.sh
+
+# 停止所有服务
+./stop-all.sh
+```
+
+**启动后的4个独立终端：**
+- 终端1 - User 后端服务 (8081)
+- 终端2 - SSO 后端服务 (8080)
+- 终端3 - SSO 前端服务 (3000)
+- 终端4 - User 前端服务 (3031)
+
+**start-all.sh 脚本功能：**
+- ✅ 自动检测并关闭占用端口的进程
+- ✅ 自动编译架构层 zqzl-framework
+- ✅ 自动编译两个后端服务
+- ✅ 自动安装前端 npm 依赖
+- ✅ 自动在4个独立的IDE终端中启动所有服务
+
+### 方式二：手动启动（开发调试）
+
+#### 1. 构建框架层（首次必须执行）
 
 ```bash
 cd backend/frameworks/zqzl-framework
 mvn clean install
 ```
 
-### 2. 启动后端服务
+#### 2. 启动后端服务
 
 **启动用户中心服务（必须先启动）：**
 ```bash
@@ -77,15 +120,7 @@ mvn spring-boot:run
 ```
 运行在: http://localhost:8080/sso
 
-### 3. 启动前端应用
-
-**启动用户管理后台：**
-```bash
-cd frontend/apps/user-web
-npm install
-npm start
-```
-运行在: http://localhost:3000
+#### 3. 启动前端应用
 
 **启动SSO登录门户：**
 ```bash
@@ -93,7 +128,15 @@ cd frontend/apps/sso-web
 npm install
 npm start
 ```
-运行在: http://localhost:3001 (建议修改端口)
+运行在: http://localhost:3000
+
+**启动用户管理后台：**
+```bash
+cd frontend/apps/user-web
+npm install
+npm start
+```
+运行在: http://localhost:3031
 
 ## 默认账号
 

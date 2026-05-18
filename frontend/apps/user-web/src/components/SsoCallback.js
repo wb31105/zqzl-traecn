@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 
-const SSO_WEB_URL = 'http://localhost:3001';
+const SSO_WEB_URL = 'http://localhost:3000';
 const USER_SERVER_URL = 'http://localhost:8081/user';
 
 const SsoCallback = () => {

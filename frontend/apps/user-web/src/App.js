@@ -4,7 +4,7 @@ import './App.css';
 import SsoCallback from './components/SsoCallback';
 import UserManagement from './components/UserManagement';
 
-const SSO_WEB_URL = 'http://localhost:3001';
+const SSO_WEB_URL = 'http://localhost:3000';
 
 const ProtectedRoute = () => {
   const isAuthenticated = !!localStorage.getItem('sso_token');
