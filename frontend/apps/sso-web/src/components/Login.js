@@ -83,8 +83,15 @@ const Login = ({ onLoginSuccess }) => {
         
         if (redirect) {
           const url = new URL(redirect);
-          const callbackUrl = `${url.origin}/sso/callback`;
-          window.location.href = `${callbackUrl}?ticket=${ticket}&username=${encodeURIComponent(usernameRes)}`;
+          const originalPath = url.pathname || '/';
+          let basePath = originalPath;
+          if (basePath.includes('/user-web')) {
+            basePath = '/user-web';
+          } else if (basePath.endsWith('/')) {
+            basePath = basePath.slice(0, -1);
+          }
+          const callbackUrl = `${url.origin}${basePath}/sso/callback?originalPath=${encodeURIComponent(originalPath)}`;
+          window.location.href = `${callbackUrl}&ticket=${ticket}&username=${encodeURIComponent(usernameRes)}`;
         } else {
           onLoginSuccess({ username: usernameRes });
         }
@@ -173,8 +180,8 @@ const Login = ({ onLoginSuccess }) => {
       </form>
       
       <div className="auth-links">
-        <a href="/forgot-password">忘记密码？</a>
-        <a href="/register">没有账号？立即注册</a>
+        <a href="/sso/forgot-password">忘记密码？</a>
+        <a href="/sso/register">没有账号？立即注册</a>
       </div>
     </div>
   );

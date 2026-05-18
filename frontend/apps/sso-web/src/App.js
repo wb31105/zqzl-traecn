@@ -56,11 +56,18 @@ function App() {
 
   return (
     <div className="App">
-      <BrowserRouter>
+      <BrowserRouter basename="/sso">
         <Routes>
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/" element={
+            isLoggedIn ? (
+              <Dashboard user={user} onLogout={handleLogout} />
+            ) : (
+              <Login onLoginSuccess={handleLoginSuccess} />
+            )
+          } />
+          <Route path="*" element={
             isLoggedIn ? (
               <Dashboard user={user} onLogout={handleLogout} />
             ) : (

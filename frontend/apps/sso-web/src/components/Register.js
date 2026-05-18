@@ -82,7 +82,7 @@ function Register() {
         <div className="auth-card">
           <h2>🎉 注册成功</h2>
           <p className="success-message">{message}</p>
-          <button className="btn btn-primary" onClick={() => window.location.href = '/'}>
+          <button className="btn btn-primary" onClick={() => window.location.href = '/sso'}>
             返回登录
           </button>
         </div>
@@ -183,7 +183,7 @@ function Register() {
           </button>
         </form>
         <div className="auth-links">
-          <a href="/">已有账号？立即登录</a>
+          <a href="/sso">已有账号？立即登录</a>
         </div>
       </div>
     </div>

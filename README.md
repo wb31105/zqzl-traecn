@@ -431,6 +431,57 @@ sudo lsof -ti :80
 # 修改 frontend/gateway/nginx.conf 中的 listen 端口
 ```
 
+#### 6. 前端应用路由问题（子路径部署）
+
+**症状**:
+- 访问 `/user-web/` 报 `Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of "text/html"`
+- 控制台警告 `No routes matched location "/user-web/"`
+- 未登录状态下访问业务地址不跳转登录页
+
+**问题原因**:
+- React 应用在子路径（/user-web、/sso）下部署时，需要正确配置 `homepage` 和 React Router 的 `basename`
+- 静态资源路径不正确导致 JS/CSS 文件加载失败
+- 路由跳转逻辑未考虑子路径前缀
+
+**已修复配置**:
+
+**user-web 配置 (frontend/apps/user-web/)**:
+1. `package.json`: 添加 `"homepage": "/user-web"`
+2. `src/App.js`: Router 添加 `basename="/user-web"`
+3. `public/index.html`: 添加 `<base href="%PUBLIC_URL%/" />`
+4. 修正 SSO_WEB_URL 为 `http://localhost/sso`
+5. 所有跳转路径添加 `/user-web` 前缀
+
+**sso-web 配置 (frontend/apps/sso-web/)**:
+1. `package.json`: 添加 `"homepage": "/sso"`
+2. `src/App.js`: Router 添加 `basename="/sso"`
+3. `public/index.html`: 添加 `<base href="%PUBLIC_URL%/" />`
+4. 所有内部链接（登录、注册、忘记密码）添加 `/sso` 前缀
+5. 回调 URL 构建逻辑根据 redirect 参数动态添加路径前缀
+
+**Nginx 配置 (frontend/gateway/nginx.conf)**:
+- 确保 `rewrite` 规则正确去除路径前缀后转发到对应前端服务
+- 静态资源路径正确映射
+
+**验证修复**:
+```bash
+# 1. 访问用户管理（未登录状态应自动跳转到 SSO 登录页）
+open http://localhost/user-web/
+
+# 2. 访问登录页
+open http://localhost/sso/
+
+# 3. 登录成功后应正确回调到 /user-web/sso/callback
+# 4. 票据验证成功后跳转到 /user-web/users
+```
+
+**开发注意事项**:
+- ✅ 所有前端内部跳转（a 标签、window.location、navigate）都要包含子路径前缀
+- ✅ 使用 `process.env.PUBLIC_URL` 或配置的 basename 来构建路径
+- ✅ Nginx 的 rewrite 规则要与 homepage 配置匹配
+- ✅ 通配符路由 `*` 要配置，处理未匹配路径的重定向
+- ✅ SSO 回调要正确构建 redirect URL 的路径部分
+
 ---
 
 ## API 接口文档

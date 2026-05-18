@@ -4,7 +4,7 @@ import './App.css';
 import SsoCallback from './components/SsoCallback';
 import UserManagement from './components/UserManagement';
 
-const SSO_WEB_URL = `${window.location.protocol}//${window.location.hostname}`;
+const SSO_WEB_URL = `${window.location.protocol}//${window.location.host}/sso`;
 
 const ProtectedRoute = () => {
   const isAuthenticated = !!localStorage.getItem('sso_token');
@@ -52,7 +52,7 @@ const Layout = () => {
 
 function App() {
   return (
-    <Router>
+    <Router basename="/user-web">
       <Routes>
         <Route path="/sso/callback" element={<SsoCallback />} />
         
@@ -60,6 +60,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/users" element={<UserManagement />} />
             <Route path="/" element={<Navigate to="/users" />} />
+            <Route path="*" element={<Navigate to="/users" />} />
           </Route>
         </Route>
       </Routes>

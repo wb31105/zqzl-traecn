@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 
-const SSO_WEB_URL = `${window.location.protocol}//${window.location.hostname}`;
+const SSO_WEB_URL = `${window.location.protocol}//${window.location.host}/sso`;
 const USER_SERVER_URL = `${process.env.REACT_APP_API_BASE_URL}`;
 
 const SsoCallback = () => {
@@ -14,8 +14,9 @@ const SsoCallback = () => {
     const params = new URLSearchParams(location.search);
     const ticket = params.get('ticket');
     const username = params.get('username');
+    const originalPath = params.get('originalPath') || '/user-web/users';
 
-    console.log('SsoCallback - ticket:', ticket, 'username:', username);
+    console.log('SsoCallback - ticket:', ticket, 'username:', username, 'originalPath:', originalPath);
 
     if (!ticket) {
       setError('缺少票据参数');
@@ -23,10 +24,10 @@ const SsoCallback = () => {
       return;
     }
 
-    validateTicket(ticket, username);
+    validateTicket(ticket, username, originalPath);
   }, [location.search]);
 
-  const validateTicket = async (ticket, username) => {
+  const validateTicket = async (ticket, username, originalPath) => {
     try {
       console.log('开始验证票据:', ticket);
       const response = await axios.get(`${USER_SERVER_URL}/sso/api/auth/validate-ticket`, {
@@ -38,20 +39,20 @@ const SsoCallback = () => {
       if (response.data.success) {
         localStorage.setItem('sso_token', ticket);
         localStorage.setItem('username', username || response.data.username);
-        console.log('验证成功，跳转到 /users');
-        window.location.href = '/users';
+        console.log('验证成功，跳转到:', originalPath);
+        window.location.href = originalPath;
       } else {
         setError(response.data.message || '票据验证失败');
         console.log('验证失败:', response.data.message);
         setTimeout(() => {
-          window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin)}`;
+          window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin + '/user-web')}`;
         }, 2000);
       }
     } catch (err) {
       console.error('票据验证失败', err);
       setError('票据验证失败，请重新登录');
       setTimeout(() => {
-        window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin)}`;
+        window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin + '/user-web')}`;
       }, 2000);
     } finally {
       setLoading(false);

@@ -153,7 +153,7 @@ function ForgotPassword() {
         <div className="auth-card">
           <h2>🎉 密码重置成功</h2>
           <p className="success-message">{message}</p>
-          <button className="btn btn-primary" onClick={() => window.location.href = '/'}>
+          <button className="btn btn-primary" onClick={() => window.location.href = '/sso'}>
             返回登录
           </button>
         </div>
@@ -302,8 +302,8 @@ function ForgotPassword() {
         )}
         
         <div className="auth-links">
-          <a href="/">返回登录</a>
-          <a href="/register">没有账号？立即注册</a>
+          <a href="/sso">返回登录</a>
+          <a href="/sso/register">没有账号？立即注册</a>
         </div>
       </div>
     </div>

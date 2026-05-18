@@ -2,6 +2,7 @@
   "name": "sso-frontend",
   "version": "1.0.0",
   "private": true,
+  "homepage": "/sso",
   "dependencies": {
     "axios": "^1.6.0",
     "dotenv": "^16.3.0",
