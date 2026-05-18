@@ -28,7 +28,7 @@ function Register() {
     }
 
     try {
-      const response = await axios.post('http://localhost:8080/sso/api/auth/send-verification-code', {
+      const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/sso/api/auth/send-verification-code`, {
         phone: formData.phone,
         type: 'register'
       });
@@ -64,7 +64,7 @@ function Register() {
     }
 
     try {
-      const response = await axios.post('http://localhost:8080/sso/api/auth/register', formData);
+      const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/sso/api/auth/register`, formData);
       if (response.data.success) {
         setIsSuccess(true);
         setMessage('注册成功！');

@@ -4,72 +4,113 @@
 
 ---
 
-## 项目架构
+## 目录
 
-### 整体目录结构
+- [架构概览](#架构概览)
+- [服务列表](#服务列表)
+- [快速开始](#快速开始)
+- [日志查询](#日志查询)
+- [服务维护](#服务维护)
+- [API 接口文档](#api-接口文档)
+- [技术栈](#技术栈)
 
-```
-zqzl-traecn/
-├── backend/                           # 后端工程
-│   ├── frameworks/                   # 框架层（独立项目，可单独发布）
-│   │   └── zqzl-framework/          # 统一依赖管理父POM
-│   ├── common/                       # 公共模块（工具类、通用配置等）
-│   └── services/                     # 业务微服务集合
-│       ├── sso-server/              # SSO 单点登录服务（端口：8080）
-│       │   └── 作用：统一登录网关，票据生成/验证，调用用户中心认证
-│       └── user-server/             # 用户中心服务（端口：8081）
-│           └── 作用：用户CRUD、注册/登录验证、角色权限管理
-├── frontend/                          # 前端工程
-│   ├── apps/                         # 业务应用集合
-│   │   ├── sso-web/                 # SSO 登录门户
-│   │   │   └── 作用：提供统一登录页面，票据展示
-│   │   └── user-web/                # 用户管理后台
-│   │       └── 作用：用户列表、编辑、启用/禁用、重置密码
-│   └── common/                       # 前端公共模块（组件库、工具类等）
-├── docs/                              # 项目文档
-├── .gitignore                        # Git 忽略配置
-└── README.md                         # 项目说明文档
-```
+---
 
-### 微服务调用关系
+## 架构概览
+
+### 整体架构图
 
 ```
-sso-web (登录门户)
-    ↓ HTTP
-sso-server (8080)
-    ↓ HTTP 调用
-user-server (8081)
-    ↓ JPA
-H2 Database
+┌─────────────────────────────────────────────────────────────────┐
+│                        用户浏览器 / 客户端                        │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Nginx 前端反向网关 (端口:80)                   │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  /                →  sso-web (3000) 登录主页              │  │
+│  │  /sso/            →  sso-web (3000) 登录相关              │  │
+│  │  /user-web/       →  user-web (3031) 用户管理              │  │
+│  │  /sso/api/        →  后端 API Gateway → sso-server        │  │
+│  │  /user/api/       →  后端 API Gateway → user-server       │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Spring Cloud Gateway 后端网关 (端口:9000)           │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  /sso/**   →  sso-server (8080)  单点登录服务              │  │
+│  │  /user/**  →  user-server (8081) 用户中心服务              │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│               Eureka 服务注册与发现中心 (端口:8761)               │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │              sso-server (8080)  已注册                     │  │
+│  │              user-server (8081) 已注册                     │  │
+│  │              gateway-server (9000) 已注册                  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       业务微服务集群                               │
+│  ┌──────────────────┐    ┌──────────────────────────────────┐  │
+│  │  sso-server      │    │  user-server                      │  │
+│  │  (端口:8080)     │    │  (端口:8081)                      │  │
+│  │  单点登录服务     │    │  用户CRUD、认证、权限管理         │  │
+│  │                  │    │  H2 数据库                        │  │
+│  └──────────────────┘    └──────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### 各服务职责
+### 调用流程说明
 
-| 服务名称 | 端口 | 职责 |
-|---------|------|------|
-| **sso-server** | 8080 | 1. 接收登录请求并转发给user-server<br>2. 验证通过后生成SSO票据(ST-xxx)<br>3. 提供票据验证接口<br>4. 从user-server获取验证码<br>*无数据库，票据存储在内存中* |
-| **user-server** | 8081 | 1. 用户CRUD管理<br>2. 用户名/密码认证<br>3. 验证码生成/验证<br>4. 用户注册、忘记密码<br>5. 用户启用/禁用<br>6. 重置密码<br>7. 分页查询、关键词搜索 |
+1. **用户访问**: 所有请求统一通过 `http://localhost` (Nginx 端口 80) 进入
+2. **前端路由**: Nginx 根据路径分发到对应的前端应用
+3. **API 路由**: 前端 API 请求通过 Nginx 转发到后端 Gateway
+4. **服务发现**: Gateway 通过 Eureka 发现并调用后端微服务
+5. **服务间调用**: sso-server 通过 OpenFeign 调用 user-server
+
+---
+
+## 服务列表
+
+### 后端服务
+
+| 服务名称 | 端口 | 上下文路径 | 职责 |
+|---------|------|-----------|------|
+| **eureka-server** | 8761 | / | 服务注册与发现中心 |
+| **gateway-server** | 9000 | / | 后端 API 网关、负载均衡、路由转发 |
+| **sso-server** | 8080 | /sso | 单点登录服务、票据生成/验证、转发认证请求 |
+| **user-server** | 8081 | /user | 用户CRUD、注册/登录验证、验证码、角色权限 |
+
+### 前端服务
+
+| 服务名称 | 端口 | 访问路径 | 职责 |
+|---------|------|---------|------|
+| **Nginx Gateway** | 80 | http://localhost | 前端统一入口、反向代理、静态资源服务 |
+| **sso-web** | 3000 | /, /sso/ | 统一登录门户、注册/找回密码 |
+| **user-web** | 3031 | /user-web/ | 用户管理后台 |
 
 ---
 
 ## 快速开始
 
-### 端口分配
+### 前置条件
 
-| 服务 | 端口 | 访问地址 |
-|------|------|----------|
-| SSO 后端服务 | 8080 | http://localhost:8080/sso |
-| User 后端服务 | 8081 | http://localhost:8081/user |
-| SSO 前端服务 | 3000 | http://localhost:3000 |
-| User 前端服务 | 3031 | http://localhost:3031 |
+- JDK 11+
+- Maven 3.6+
+- Node.js 14+
+- Nginx (可选，用于统一入口)
 
 ### 方式一：一键启动（推荐）
 
-项目根目录提供了一键启动脚本 `start-all.sh`，执行后：
-1. 自动关闭占用端口的服务
-2. 自动编译架构项目和后端服务
-3. 自动安装前端依赖
-4. 在4个独立的IDE终端中自动启动所有服务
+项目根目录提供了一键启动脚本：
 
 ```bash
 # 进入项目根目录
@@ -82,18 +123,14 @@ cd /Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn
 ./stop-all.sh
 ```
 
-**启动后的4个独立终端：**
-- 终端1 - User 后端服务 (8081)
-- 终端2 - SSO 后端服务 (8080)
-- 终端3 - SSO 前端服务 (3000)
-- 终端4 - User 前端服务 (3031)
-
-**start-all.sh 脚本功能：**
-- ✅ 自动检测并关闭占用端口的进程
-- ✅ 自动编译架构层 zqzl-framework
-- ✅ 自动编译两个后端服务
-- ✅ 自动安装前端 npm 依赖
-- ✅ 自动在4个独立的IDE终端中启动所有服务
+**启动顺序**:
+1. Eureka 注册中心 (8761)
+2. User 后端服务 (8081)
+3. SSO 后端服务 (8080)
+4. Gateway 网关服务 (9000)
+5. SSO 前端 (3000)
+6. User 前端 (3031)
+7. Nginx 前端网关 (80)
 
 ### 方式二：手动启动（开发调试）
 
@@ -106,23 +143,37 @@ mvn clean install
 
 #### 2. 启动后端服务
 
-**启动用户中心服务（必须先启动）：**
+**启动 Eureka 注册中心（必须先启动）**:
+```bash
+cd backend/services/eureka-server
+mvn spring-boot:run
+```
+访问: http://localhost:8761
+
+**启动用户中心服务**:
 ```bash
 cd backend/services/user-server
 mvn spring-boot:run
 ```
 运行在: http://localhost:8081/user
 
-**启动SSO单点登录服务：**
+**启动 SSO 单点登录服务**:
 ```bash
 cd backend/services/sso-server
 mvn spring-boot:run
 ```
 运行在: http://localhost:8080/sso
 
+**启动 Gateway 网关服务**:
+```bash
+cd backend/services/gateway-server
+mvn spring-boot:run
+```
+运行在: http://localhost:9000
+
 #### 3. 启动前端应用
 
-**启动SSO登录门户：**
+**启动 SSO 登录门户**:
 ```bash
 cd frontend/apps/sso-web
 npm install
@@ -130,13 +181,329 @@ npm start
 ```
 运行在: http://localhost:3000
 
-**启动用户管理后台：**
+**启动用户管理后台**:
 ```bash
 cd frontend/apps/user-web
 npm install
 npm start
 ```
 运行在: http://localhost:3031
+
+#### 4. 启动 Nginx 前端网关
+
+```bash
+cd frontend/gateway
+./start-nginx.sh
+```
+
+### 验证启动
+
+1. 访问 Eureka 控制台: http://localhost:8761，确认所有服务已注册
+2. 访问统一登录入口: http://localhost
+3. 使用默认账号登录: `admin` / `admin123`
+
+---
+
+## 日志查询
+
+### 后端服务日志
+
+所有 Spring Boot 服务的日志输出在控制台。如果需要持久化日志，可以配置日志文件。
+
+#### 查看服务输出日志
+
+每个服务在独立的终端窗口运行，可以直接查看对应终端的输出。
+
+#### 配置日志文件（可选）
+
+在各服务的 `application.yml` 中添加：
+
+```yaml
+logging:
+  file:
+    name: logs/${spring.application.name}.log
+  level:
+    root: INFO
+    com.zqzl: DEBUG
+```
+
+### Nginx 网关日志
+
+Nginx 日志位于 `frontend/gateway/logs/` 目录：
+
+```bash
+# 访问日志
+tail -f frontend/gateway/logs/access.log
+
+# 错误日志
+tail -f frontend/gateway/logs/error.log
+```
+
+### 前端应用日志
+
+前端应用日志输出在浏览器控制台。
+
+- Chrome: F12 → Console 标签
+- Firefox: F12 → 控制台
+
+---
+
+## 服务维护
+
+### 查看服务状态
+
+#### 统一访问入口
+
+**所有应用都通过 Nginx 网关（端口 80）访问：**
+
+| 应用 | 访问地址 | 说明 |
+|------|---------|------|
+| **SSO 登录门户** | http://localhost | 统一登录入口，首页 |
+| SSO 登录备用 | http://localhost/sso/ | 登录页面备用路径 |
+| **用户管理后台** | http://localhost/user-web/ | 用户管理系统 |
+| Eureka 控制台 | http://localhost:8761 | 服务注册中心 |
+
+#### Eureka 控制台
+
+访问 http://localhost:8761，可以查看：
+- 已注册的服务列表
+- 服务实例状态（UP/DOWN）
+- 服务健康状况
+
+#### Gateway 路由信息
+
+Gateway 集成了 Actuator，可以查看路由配置（通过 Nginx 访问）：
+
+```bash
+# 查看所有路由（推荐：通过 Nginx 访问）
+curl http://localhost/actuator/gateway/routes
+
+# 或直接访问 Gateway
+curl http://localhost:9000/actuator/gateway/routes
+
+# 查看网关全局过滤器
+curl http://localhost/actuator/gateway/globalfilters
+```
+
+### 常用运维命令
+
+#### 端口占用检查
+
+```bash
+# 检查所有服务端口
+lsof -ti :8761 -ti :9000 -ti :8080 -ti :8081 -ti :3000 -ti :3031 -ti :80
+```
+
+#### 强制停止服务
+
+```bash
+# 停止占用指定端口的进程
+kill -9 $(lsof -ti :8080)
+
+# 或者使用停止脚本
+./stop-all.sh
+```
+
+### 服务扩缩容
+
+#### 后端服务水平扩展
+
+由于使用了 Eureka + Ribbon 负载均衡，可以启动多个相同的服务实例：
+
+```bash
+# 启动第一个 user-server 实例（端口 8081）
+cd backend/services/user-server
+mvn spring-boot:run
+
+# 启动第二个 user-server 实例（端口 8082）
+cd backend/services/user-server
+mvn spring-boot:run -Dserver.port=8082
+```
+
+Gateway 会自动发现并进行负载均衡。
+
+### 常见问题排查
+
+#### 1. 服务注册失败
+
+**症状**: Eureka 控制台看不到服务
+**排查步骤**:
+```bash
+# 检查 Eureka 是否正常运行
+curl http://localhost:8761
+
+# 检查服务配置中的 Eureka 地址是否正确
+grep -A 5 "eureka:" backend/services/*/src/main/resources/application.yml
+```
+
+#### 2. 网关路由失败
+
+**症状**: API 请求返回 404 或 503
+**排查步骤**:
+```bash
+# 查看 Gateway 路由配置
+curl http://localhost:9000/actuator/gateway/routes
+
+# 检查目标服务是否在 Eureka 中注册
+# 访问 Eureka 控制台查看服务状态
+```
+
+#### 3. 跨域 (CORS) 问题
+
+**症状**: 
+- 前端请求报错 "No 'Access-Control-Allow-Origin' header"
+- 浏览器控制台显示 "Invalid CORS request"
+- API 请求返回 HTTP 403 状态码
+
+**架构说明**:
+当前系统采用 **双层 CORS 配置** 确保兼容性：
+```
+浏览器 → Nginx (80) → Gateway (9000) → 后端服务 (8080/8081)
+                                       ↓              ↓
+                                   CORS 配置       CORS 配置
+```
+
+**CORS 配置位置**:
+1. **Spring Cloud Gateway (统一入口)** - `backend/services/gateway-server/src/main/resources/application.yml`
+   - 全局 CORS 配置，处理所有 API 请求
+   - 使用 `allowedOriginPatterns: "*"` 允许所有来源
+   - 支持所有 HTTP 方法 (GET, POST, PUT, DELETE, OPTIONS)
+   - Nginx 只做透明转发，不处理 CORS
+
+2. **后端业务服务 (sso-server/user-server)** - `SecurityConfig.java`
+   - 各服务独立配置 CORS，确保直接访问时也能工作
+   - 使用 `setAllowedOriginPatterns(Arrays.asList("*"))`
+   - 已移除 Controller 上的 `@CrossOrigin` 局部注解，避免冲突
+
+**排查步骤**:
+```bash
+# 1. 检查请求路径是否通过 Nginx
+# 应该通过 http://localhost/sso/api/... 或 http://localhost/user/api/...
+# 而不是直接访问 http://localhost:8080 或 http://localhost:9000
+
+# 2. 检查 OPTIONS 预检请求是否正常
+curl -X OPTIONS -i http://localhost/sso/api/auth/captcha
+
+# 3. 查看 Gateway 日志确认路由是否正确
+# 在 Gateway 控制台查看路由转发日志
+
+# 4. 重启后端服务（修改 CORS 配置后需要重启）
+cd backend/services/gateway-server && mvn spring-boot:run
+cd backend/services/sso-server && mvn spring-boot:run
+cd backend/services/user-server && mvn spring-boot:run
+```
+
+**配置原则**:
+- ✅ 所有前端 API 请求统一通过 Nginx (端口 80)
+- ✅ CORS 配置只在 Gateway 层处理，避免重复配置
+- ✅ 使用 `allowedOriginPatterns` 而非 `allowedOrigins`
+- ✅ 确保 OPTIONS 请求能够正确响应
+
+#### 4. 登录流程排查
+
+**完整登录流程**:
+```
+1. 访问 http://localhost (Nginx → sso-web 3000)
+2. 输入用户名密码点击登录
+3. 前端调用 POST /sso/api/auth/login (Nginx → Gateway → sso-server)
+4. sso-server 通过 OpenFeign 调用 user-server 验证用户
+5. sso-server 生成票据 (ticket) 并返回
+6. 如果有 redirect 参数，跳转到回调地址
+7. 回调页面调用 /sso/api/auth/validate-ticket 验证票据
+8. 验证成功后进入用户管理页面
+```
+
+**排查步骤**:
+1. 检查前端 API_BASE_URL 配置是否为 `http://localhost`
+2. 检查浏览器 Network 面板，确认请求地址和响应头
+3. 检查 sso-server 控制台，确认 OpenFeign 调用 user-server 是否成功
+4. 检查 Eureka 控制台，确认 user-server 和 sso-server 都已注册
+
+#### 5. Nginx 启动失败
+
+**症状**: 80 端口被占用
+**解决方案**:
+```bash
+# 查找占用 80 端口的进程
+sudo lsof -ti :80
+
+# 停止占用进程或修改 Nginx 配置端口
+# 修改 frontend/gateway/nginx.conf 中的 listen 端口
+```
+
+---
+
+## API 接口文档
+
+### 通过网关访问（推荐）
+
+所有 API 通过统一网关 `http://localhost` 访问：
+
+#### SSO 单点登录接口
+
+| 方法 | 路径 | 说明 |
+|-----|------|------|
+| POST | `/sso/api/auth/login` | 用户登录（返回票据） |
+| POST | `/sso/api/auth/register` | 用户注册 |
+| POST | `/sso/api/auth/forgot-password` | 重置密码 |
+| GET | `/sso/api/auth/captcha` | 获取验证码 |
+| GET | `/sso/api/auth/check-captcha` | 检查是否需要验证码 |
+| GET | `/sso/api/auth/validate-ticket` | 验证票据有效性 |
+
+#### User 用户中心接口
+
+| 方法 | 路径 | 说明 |
+|-----|------|------|
+| GET | `/user/api/users` | 获取用户列表（分页、搜索） |
+| GET | `/user/api/users/{id}` | 获取单个用户详情 |
+| PUT | `/user/api/users/{id}` | 更新用户基本信息 |
+| PUT | `/user/api/users/{id}/reset-password` | 重置用户密码 |
+| PUT | `/user/api/users/{id}/toggle-status` | 切换用户启用/禁用状态 |
+| DELETE | `/user/api/users/{id}` | 删除用户 |
+
+### 直接访问服务（调试用）
+
+也可以直接访问后端服务端口进行调试：
+- SSO 服务: http://localhost:8080/sso
+- User 服务: http://localhost:8081/user
+
+---
+
+## 技术栈
+
+### 后端
+
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| Spring Boot | 2.7.x | 应用框架 |
+| Spring Cloud | 2021.0.x | 微服务框架 |
+| Spring Cloud Netflix Eureka | - | 服务注册与发现 |
+| Spring Cloud Gateway | - | API 网关 |
+| Spring Cloud OpenFeign | - | 声明式服务调用 |
+| Spring Security | - | 安全认证 |
+| Spring Data JPA | - | ORM 框架 |
+| H2 Database | - | 内存数据库 |
+| Lombok | - | 代码简化 |
+| JSR-380 | - | 参数校验 |
+
+### 前端
+
+| 技术 | 说明 |
+|------|------|
+| React 18 | UI 框架 |
+| React Router v6 | 路由管理 |
+| Axios | HTTP 客户端 |
+| CSS3 | 样式 |
+
+### 基础设施
+
+| 技术 | 说明 |
+|------|------|
+| Nginx | 前端反向代理、负载均衡 |
+| Maven | 项目构建、依赖管理 |
+| npm | 前端包管理 |
+
+---
 
 ## 默认账号
 
@@ -146,94 +513,34 @@ npm start
 
 ---
 
-## API 接口文档
-
-### user-server 用户中心接口 (8081)
-
-#### 认证接口
-
-| 方法 | 路径 | 说明 |
-|-----|------|------|
-| POST | `/api/auth/login` | 用户登录验证 |
-| POST | `/api/auth/register` | 用户注册 |
-| POST | `/api/auth/forgot-password` | 重置密码 |
-| GET | `/api/auth/captcha` | 获取验证码 |
-| GET | `/api/auth/check-captcha` | 检查是否需要验证码 |
-
-#### 用户管理接口
-
-| 方法 | 路径 | 说明 |
-|-----|------|------|
-| GET | `/api/users` | 获取用户列表（分页、搜索）|
-| GET | `/api/users/{id}` | 获取单个用户详情 |
-| GET | `/api/users/username/{username}` | 根据用户名获取用户 |
-| PUT | `/api/users/{id}` | 更新用户基本信息（邮箱、手机号、昵称、角色）|
-| PUT | `/api/users/{id}/reset-password` | 重置用户密码 |
-| PUT | `/api/users/{id}/toggle-status` | 切换用户启用/禁用状态 |
-| DELETE | `/api/users/{id}` | 删除用户 |
-
-### sso-server 单点登录接口 (8080)
-
-| 方法 | 路径 | 说明 |
-|-----|------|------|
-| POST | `/api/auth/login` | SSO登录（调用user-server认证后返回票据）|
-| GET | `/api/auth/captcha` | 获取验证码（转发到user-server）|
-| GET | `/api/auth/check-captcha` | 检查是否需要验证码（转发到user-server）|
-| GET | `/api/auth/validate-ticket` | 验证票据有效性 |
-
----
-
-## 技术栈
-
-### 后端
-- Spring Boot 2.7.x
-- Spring Security
-- Spring Data JPA (user-server)
-- H2 Database (user-server)
-- RestTemplate (服务间调用)
-- JSR-380 参数校验
-- Lombok
-
-### 前端
-- React 18
-- React Router v6 (仅在user-web使用)
-- Axios（HTTP 客户端）
-- CSS3（响应式样式）
-
----
-
-## 功能特性
-
-### 用户中心 (user-server + user-web)
-1. **用户认证**：用户名密码登录、验证码机制
-2. **用户注册**：完整的注册表单验证
-3. **忘记密码**：通过用户名+邮箱重置密码
-4. **用户管理**：
-   - 分页查询列表
-   - 按用户名、邮箱、昵称搜索
-   - 编辑用户基本信息（不包含启用状态和密码）
-   - 快捷操作按钮：启用/禁用、重置密码、删除
-   - 固定表格高度，内容滚动
-5. **角色权限**：ADMIN管理员 / USER普通用户
-
-### SSO单点登录 (sso-server + sso-web)
-1. **统一登录入口**：登录请求转发到user-server验证
-2. **票据机制**：登录成功后生成 ST-xxx 格式票据
-3. **票据验证**：提供票据验证接口
-4. **验证码**：验证码来自user-server服务
-
----
-
 ## 开发规范
 
-- 各微服务独立开发、部署
-- 微服务之间通过HTTP调用（RestTemplate）
-- 框架层变更需谨慎评估，发布后更新所有服务依赖
-- 公共模块变更需谨慎评估影响
-- 前后端接口遵循 RESTful 规范
-- 代码提交前请确保本地测试通过
-- 所有配置必须支持多环境切换，敏感配置使用环境变量注入
-- DTO与Entity分离，避免直接暴露数据库实体
-- 使用BCrypt加密存储所有用户密码
-- 所有输入参数必须进行长度、格式校验
-- 用户操作按钮按功能分类，提高易用性
+1. 各微服务独立开发、部署
+2. 微服务之间通过 OpenFeign 调用，不直接依赖
+3. 所有 API 请求通过网关，不直接调用后端服务
+4. 框架层变更需谨慎评估，发布后更新所有服务依赖
+5. 公共模块变更需谨慎评估影响
+6. 前后端接口遵循 RESTful 规范
+7. 代码提交前请确保本地测试通过
+8. 所有配置必须支持多环境切换，敏感配置使用环境变量注入
+9. DTO 与 Entity 分离，避免直接暴露数据库实体
+10. 使用 BCrypt 加密存储所有用户密码
+
+---
+
+## 版本历史
+
+### v2.0.0 (当前版本)
+- ✅ 新增 Eureka 服务注册与发现中心
+- ✅ 新增 Spring Cloud Gateway 后端网关
+- ✅ 新增 Nginx 前端反向代理网关
+- ✅ 实现服务发现与负载均衡
+- ✅ 统一前端入口，解决跨域问题
+- ✅ 集成 OpenFeign 声明式服务调用
+- ✅ 更新启动脚本，支持一键启停所有服务
+- ✅ 完善文档，添加架构图、运维指南
+
+### v1.0.0
+- 基础微服务架构
+- SSO 单点登录功能
+- 用户中心 CRUD 功能

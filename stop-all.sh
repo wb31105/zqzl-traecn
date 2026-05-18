@@ -21,6 +21,13 @@ kill_port() {
 echo "正在关闭所有服务..."
 echo "----------------------------------------"
 
+cd "$(dirname "$0")/frontend/gateway"
+chmod +x stop-nginx.sh 2>/dev/null || true
+./stop-nginx.sh 2>/dev/null || true
+
+kill_port 80
+kill_port 8761
+kill_port 9000
 kill_port 8080
 kill_port 8081
 kill_port 3000

@@ -1,42 +1,26 @@
 package com.sso.client;
 
 import com.sso.dto.*;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Map;
 
-@Component
-public class UserServiceClient {
+@FeignClient(name = "user-server", path = "/user")
+public interface UserServiceClient {
 
-    private final RestTemplate restTemplate;
+    @PostMapping("/api/auth/login")
+    LoginResponse validateLogin(@RequestBody LoginRequest request);
 
-    @Value("${user.service.url:http://localhost:8081/user}")
-    private String userServiceUrl;
+    @PostMapping("/api/auth/register")
+    RegisterResponse register(@RequestBody RegisterRequest request);
 
-    public UserServiceClient(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
+    @PostMapping("/api/auth/forgot-password")
+    ForgotPasswordResponse forgotPassword(@RequestBody ForgotPasswordRequest request);
 
-    public LoginResponse validateLogin(LoginRequest request) {
-        String url = userServiceUrl + "/api/auth/login";
-        return restTemplate.postForObject(url, request, LoginResponse.class);
-    }
-
-    public RegisterResponse register(RegisterRequest request) {
-        String url = userServiceUrl + "/api/auth/register";
-        return restTemplate.postForObject(url, request, RegisterResponse.class);
-    }
-
-    public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
-        String url = userServiceUrl + "/api/auth/forgot-password";
-        return restTemplate.postForObject(url, request, ForgotPasswordResponse.class);
-    }
-
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> findUserByIdentifier(String identifier) {
-        String url = userServiceUrl + "/api/auth/find-user?identifier=" + identifier;
-        return restTemplate.getForObject(url, Map.class);
-    }
+    @GetMapping("/api/auth/find-user")
+    Map<String, Object> findUserByIdentifier(@RequestParam("identifier") String identifier);
 }

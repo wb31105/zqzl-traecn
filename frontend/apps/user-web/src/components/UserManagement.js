@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8081/user/api/users';
+const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL}/user/api/users`;
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
