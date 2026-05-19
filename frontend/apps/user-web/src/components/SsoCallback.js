@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 
-const SSO_WEB_URL = `${window.location.protocol}//${window.location.host}/sso`;
-const USER_SERVER_URL = `${process.env.REACT_APP_API_BASE_URL}`;
+const SSO_WEB_URL = process.env.REACT_APP_SSO_DOMAIN;
+const API_DOMAIN = process.env.REACT_APP_API_DOMAIN;
 
 const SsoCallback = () => {
   const location = useLocation();
@@ -14,7 +14,7 @@ const SsoCallback = () => {
     const params = new URLSearchParams(location.search);
     const ticket = params.get('ticket');
     const username = params.get('username');
-    const originalPath = params.get('originalPath') || '/user-web/users';
+    const originalPath = params.get('originalPath') || '/users';
 
     console.log('SsoCallback - ticket:', ticket, 'username:', username, 'originalPath:', originalPath);
 
@@ -30,7 +30,7 @@ const SsoCallback = () => {
   const validateTicket = async (ticket, username, originalPath) => {
     try {
       console.log('开始验证票据:', ticket);
-      const response = await axios.get(`${USER_SERVER_URL}/sso/api/auth/validate-ticket`, {
+      const response = await axios.get(`${API_DOMAIN}/v1/auth/validate-ticket`, {
         params: { ticket }
       });
 
@@ -45,14 +45,14 @@ const SsoCallback = () => {
         setError(response.data.message || '票据验证失败');
         console.log('验证失败:', response.data.message);
         setTimeout(() => {
-          window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin + '/user-web')}`;
+          window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin + window.location.pathname)}`;
         }, 2000);
       }
     } catch (err) {
       console.error('票据验证失败', err);
       setError('票据验证失败，请重新登录');
       setTimeout(() => {
-        window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin + '/user-web')}`;
+        window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin + window.location.pathname)}`;
       }, 2000);
     } finally {
       setLoading(false);

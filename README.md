@@ -18,22 +18,26 @@
 
 ## 架构概览
 
-### 整体架构图
+### 整体架构图（域名架构版）
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        用户浏览器 / 客户端                        │
-└────────────────────────────────┬────────────────────────────────┘
-                                 │
-                                 ▼
+│                                                                 │
+│        ┌─────────────────┐    ┌─────────────────┐              │
+│        │ sso.bw.com      │    │ admin.bw.com    │              │
+│        │ (登录门户)       │    │ (管理平台)       │              │
+│        └────────┬────────┘    └────────┬────────┘              │
+│                 │                        │                       │
+└─────────────────┼────────────────────────┼───────────────────────┘
+                  │                        │
+                  ▼                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Nginx 前端反向网关 (端口:80)                   │
+│                    Nginx 反向代理 (端口:80)                       │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │  /                →  sso-web (3000) 登录主页              │  │
-│  │  /sso/            →  sso-web (3000) 登录相关              │  │
-│  │  /user-web/       →  user-web (3031) 用户管理              │  │
-│  │  /sso/api/        →  后端 API Gateway → sso-server        │  │
-│  │  /user/api/       →  后端 API Gateway → user-server       │  │
+│  │  Server: sso.bw.com      →  sso-web (3000) 登录页面       │  │
+│  │  Server: admin.bw.com    →  user-web (3031) 用户管理      │  │
+│  │  Server: api.bw.com      →  gateway-server (9000) API 网关│  │
 │  └───────────────────────────────────────────────────────────┘  │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
@@ -41,8 +45,8 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │              Spring Cloud Gateway 后端网关 (端口:9000)           │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │  /sso/**   →  sso-server (8080)  单点登录服务              │  │
-│  │  /user/**  →  user-server (8081) 用户中心服务              │  │
+│  │  /v1/auth/**  →  sso-server (8080)  单点登录服务           │  │
+│  │  /v1/users/** →  user-server (8081) 用户中心服务           │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
@@ -68,11 +72,46 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### 域名架构规范
+
+#### 核心域名规则
+
+| 域名 | 用途 | 说明 |
+|------|------|------|
+| **sso.bw.com** | SSO 单点登录门户 | 统一登录入口、注册、找回密码 |
+| **admin.bw.com** | 管理平台入口 | 用户管理、系统配置等后台功能 |
+| **api.bw.com** | 后端 API 接口 | 所有微服务 API 统一入口，带版本号 |
+
+#### API 版本管理规则
+
+✅ **强制版本号**：所有后端 API 路径必须包含版本号前缀
+- 认证相关：`api.bw.com/v1/auth/**`
+- 用户相关：`api.bw.com/v1/users/**`
+
+✅ **版本升级策略**：
+- 小版本迭代（兼容）：在 `/v1/` 下直接更新
+- 大版本升级（不兼容）：新增 `/v2/`，保留 `/v1/` 过渡期
+
+#### 前端环境变量配置
+
+所有前端域名通过环境变量配置，支持多环境切换：
+
+```bash
+# .env.development / .env.production / .env.test
+REACT_APP_SSO_DOMAIN=http://sso.bw.com      # SSO 域名
+REACT_APP_ADMIN_DOMAIN=http://admin.bw.com  # 管理平台域名
+REACT_APP_API_DOMAIN=http://api.bw.com      # API 域名
+```
+
 ### 调用流程说明
 
-1. **用户访问**: 所有请求统一通过 `http://localhost` (Nginx 端口 80) 进入
-2. **前端路由**: Nginx 根据路径分发到对应的前端应用
-3. **API 路由**: 前端 API 请求通过 Nginx 转发到后端 Gateway
+1. **用户访问**: 根据功能访问不同的域名
+   - 登录：`http://sso.bw.com`
+   - 管理：`http://admin.bw.com`
+   - API：`http://api.bw.com`
+
+2. **前端路由**: Nginx 根据 `server_name` 分发到对应的前端应用
+3. **API 路由**: 前端通过独立的 `api.bw.com` 域名调用后端接口
 4. **服务发现**: Gateway 通过 Eureka 发现并调用后端微服务
 5. **服务间调用**: sso-server 通过 OpenFeign 调用 user-server
 
@@ -82,20 +121,26 @@
 
 ### 后端服务
 
-| 服务名称 | 端口 | 上下文路径 | 职责 |
-|---------|------|-----------|------|
-| **eureka-server** | 8761 | / | 服务注册与发现中心 |
-| **gateway-server** | 9000 | / | 后端 API 网关、负载均衡、路由转发 |
-| **sso-server** | 8080 | /sso | 单点登录服务、票据生成/验证、转发认证请求 |
-| **user-server** | 8081 | /user | 用户CRUD、注册/登录验证、验证码、角色权限 |
+| 服务名称 | 端口 | 上下文路径 | API 路径前缀 | 职责 |
+|---------|------|-----------|-------------|------|
+| **eureka-server** | 8761 | / | - | 服务注册与发现中心 |
+| **gateway-server** | 9000 | / | /v1/** | 后端 API 网关、负载均衡、路由转发、版本管理 |
+| **sso-server** | 8080 | / | /v1/auth | 单点登录服务、票据生成/验证、转发认证请求 |
+| **user-server** | 8081 | / | /v1/users | 用户CRUD、注册/登录验证、验证码、角色权限 |
 
-### 前端服务
+### 前端服务（域名架构）
 
-| 服务名称 | 端口 | 访问路径 | 职责 |
-|---------|------|---------|------|
-| **Nginx Gateway** | 80 | http://localhost | 前端统一入口、反向代理、静态资源服务 |
-| **sso-web** | 3000 | /, /sso/ | 统一登录门户、注册/找回密码 |
-| **user-web** | 3031 | /user-web/ | 用户管理后台 |
+| 服务名称 | 内部端口 | 外部域名 | 职责 |
+|---------|---------|---------|------|
+| **Nginx Gateway** | 80 | - | 多域名反向代理、统一入口 |
+| **sso-web** | 3000 | `sso.bw.com` | 统一登录门户、注册/找回密码 |
+| **user-web** | 3031 | `admin.bw.com` | 用户管理后台 |
+
+### API 域名服务
+
+| 域名 | 映射后端服务 | 说明 |
+|------|------------|------|
+| `api.bw.com` | gateway-server:9000 | 所有后端 API 统一入口，带版本号 |
 
 ---
 
@@ -196,11 +241,26 @@ cd frontend/gateway
 ./start-nginx.sh
 ```
 
+### 域名配置（必须）
+
+使用域名架构前，需要在本地 hosts 文件添加域名映射：
+
+**macOS / Linux**:
+```bash
+sudo echo "127.0.0.1 sso.bw.com admin.bw.com api.bw.com" >> /etc/hosts
+```
+
+**Windows** (以管理员身份运行 cmd):
+```
+echo 127.0.0.1 sso.bw.com admin.bw.com api.bw.com >> C:\Windows\System32\drivers\etc\hosts
+```
+
 ### 验证启动
 
 1. 访问 Eureka 控制台: http://localhost:8761，确认所有服务已注册
-2. 访问统一登录入口: http://localhost
-3. 使用默认账号登录: `admin` / `admin123`
+2. 访问 SSO 登录门户: http://sso.bw.com
+3. 访问管理平台: http://admin.bw.com（未登录会自动跳转到 SSO）
+4. 使用默认账号登录: `admin` / `admin123`
 
 ---
 
@@ -486,37 +546,55 @@ open http://localhost/sso/
 
 ## API 接口文档
 
-### 通过网关访问（推荐）
+### 通过 API 域名访问（推荐）
 
-所有 API 通过统一网关 `http://localhost` 访问：
+所有 API 通过统一域名 `http://api.bw.com` 访问，带版本号：
 
-#### SSO 单点登录接口
-
-| 方法 | 路径 | 说明 |
-|-----|------|------|
-| POST | `/sso/api/auth/login` | 用户登录（返回票据） |
-| POST | `/sso/api/auth/register` | 用户注册 |
-| POST | `/sso/api/auth/forgot-password` | 重置密码 |
-| GET | `/sso/api/auth/captcha` | 获取验证码 |
-| GET | `/sso/api/auth/check-captcha` | 检查是否需要验证码 |
-| GET | `/sso/api/auth/validate-ticket` | 验证票据有效性 |
-
-#### User 用户中心接口
+#### SSO 单点登录接口 (v1 版本)
 
 | 方法 | 路径 | 说明 |
 |-----|------|------|
-| GET | `/user/api/users` | 获取用户列表（分页、搜索） |
-| GET | `/user/api/users/{id}` | 获取单个用户详情 |
-| PUT | `/user/api/users/{id}` | 更新用户基本信息 |
-| PUT | `/user/api/users/{id}/reset-password` | 重置用户密码 |
-| PUT | `/user/api/users/{id}/toggle-status` | 切换用户启用/禁用状态 |
-| DELETE | `/user/api/users/{id}` | 删除用户 |
+| POST | `/v1/auth/login` | 用户登录（返回票据） |
+| POST | `/v1/auth/register` | 用户注册 |
+| POST | `/v1/auth/forgot-password` | 重置密码 |
+| GET | `/v1/auth/captcha` | 获取验证码 |
+| GET | `/v1/auth/check-captcha` | 检查是否需要验证码 |
+| GET | `/v1/auth/validate-ticket` | 验证票据有效性 |
+
+#### User 用户中心接口 (v1 版本)
+
+| 方法 | 路径 | 说明 |
+|-----|------|------|
+| GET | `/v1/users` | 获取用户列表（分页、搜索） |
+| GET | `/v1/users/{id}` | 获取单个用户详情 |
+| PUT | `/v1/users/{id}` | 更新用户基本信息 |
+| PUT | `/v1/users/{id}/reset-password` | 重置用户密码 |
+| PUT | `/v1/users/{id}/toggle-status` | 切换用户启用/禁用状态 |
+| DELETE | `/v1/users/{id}` | 删除用户 |
 
 ### 直接访问服务（调试用）
 
 也可以直接访问后端服务端口进行调试：
-- SSO 服务: http://localhost:8080/sso
-- User 服务: http://localhost:8081/user
+- SSO 服务: http://localhost:8080/v1/auth
+- User 服务: http://localhost:8081/v1/users
+
+### API 版本规范
+
+**版本号位置**：URL 路径前缀，如 `/v1/auth/login`
+
+**版本管理策略**：
+1. **v1（当前稳定版）**：生产环境使用
+2. **v2（开发中）**：新功能开发，不兼容 v1 时启用
+3. **版本兼容期**：新版本发布后，旧版本保留 3 个月过渡期
+
+**版本请求示例**：
+```bash
+# v1 版本（推荐）
+curl http://api.bw.com/v1/auth/login
+
+# 未来 v2 版本
+curl http://api.bw.com/v2/auth/login
+```
 
 ---
 
@@ -566,6 +644,8 @@ open http://localhost/sso/
 
 ## 开发规范
 
+### 微服务开发规范
+
 1. 各微服务独立开发、部署
 2. 微服务之间通过 OpenFeign 调用，不直接依赖
 3. 所有 API 请求通过网关，不直接调用后端服务
@@ -577,11 +657,69 @@ open http://localhost/sso/
 9. DTO 与 Entity 分离，避免直接暴露数据库实体
 10. 使用 BCrypt 加密存储所有用户密码
 
+### 域名与路由规范（强制）
+
+✅ **前端域名规范**：
+- SSO 登录门户统一使用 `sso.bw.com`
+- 管理平台统一使用 `admin.bw.com`
+- 不允许使用路径前缀（如 `/sso`、`/user-web`）区分应用
+
+✅ **后端 API 域名规范**：
+- 所有 API 统一使用 `api.bw.com` 域名
+- 强制添加版本号前缀：`/v1/`、`/v2/` 等
+- 示例：`api.bw.com/v1/auth/login`
+
+✅ **前端环境变量配置规范**：
+```bash
+# 正确配置
+REACT_APP_SSO_DOMAIN=http://sso.bw.com
+REACT_APP_ADMIN_DOMAIN=http://admin.bw.com
+REACT_APP_API_DOMAIN=http://api.bw.com
+
+# 禁止硬编码域名
+# ❌ const SSO_URL = 'http://localhost/sso'
+```
+
+✅ **后端 Controller 路径规范**：
+```java
+// 正确配置
+@RestController
+@RequestMapping("/v1/auth")  // 带版本号
+public class AuthController { ... }
+
+// 禁止无版本号
+// ❌ @RequestMapping("/api/auth")
+```
+
+✅ **Nginx 配置规范**：
+- 每个域名独立一个 `server` 配置块
+- 使用 `server_name` 区分不同域名
+- API 请求统一转发到 gateway-server
+
 ---
 
 ## 版本历史
 
-### v2.0.0 (当前版本)
+### v3.0.0 (当前版本 - 域名架构版)
+- ✅ **域名架构重构**：实现三域名分离架构
+  - `sso.bw.com` - SSO 单点登录门户
+  - `admin.bw.com` - 管理平台入口
+  - `api.bw.com` - 后端 API 统一入口
+- ✅ **API 版本管理**：所有接口统一添加 `/v1` 版本前缀
+  - 认证接口：`/v1/auth/**`
+  - 用户接口：`/v1/users/**`
+  - 支持平滑版本升级
+- ✅ **前端环境变量重构**：所有域名通过环境变量配置
+  - 支持多环境切换（dev / test / prod）
+  - 移除硬编码域名
+- ✅ **后端路径规范**：移除服务上下文路径前缀
+  - sso-server: 移除 `/sso` 上下文
+  - user-server: 移除 `/user` 上下文
+  - Controller 统一使用 `/v1/` 前缀
+- ✅ **Nginx 多域名配置**：基于 server_name 的虚拟主机配置
+- ✅ **文档更新**：完整的域名架构说明、规范文档
+
+### v2.0.0
 - ✅ 新增 Eureka 服务注册与发现中心
 - ✅ 新增 Spring Cloud Gateway 后端网关
 - ✅ 新增 Nginx 前端反向代理网关

@@ -21,7 +21,7 @@ eureka:
 
 user:
   service:
-    url: ${USER_SERVICE_URL:http://user-server/user}
+    url: ${USER_SERVICE_URL:http://user-server:8081}
 
 sso:
   ticket:

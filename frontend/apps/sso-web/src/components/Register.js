@@ -28,7 +28,7 @@ function Register() {
     }
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/sso/api/auth/send-verification-code`, {
+      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/send-verification-code`, {
         phone: formData.phone,
         type: 'register'
       });
@@ -64,7 +64,7 @@ function Register() {
     }
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/sso/api/auth/register`, formData);
+      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/register`, formData);
       if (response.data.success) {
         setIsSuccess(true);
         setMessage('注册成功！');
@@ -82,7 +82,7 @@ function Register() {
         <div className="auth-card">
           <h2>🎉 注册成功</h2>
           <p className="success-message">{message}</p>
-          <button className="btn btn-primary" onClick={() => window.location.href = '/sso'}>
+          <button className="btn btn-primary" onClick={() => window.location.href = '/'}>
             返回登录
           </button>
         </div>
@@ -183,7 +183,7 @@ function Register() {
           </button>
         </form>
         <div className="auth-links">
-          <a href="/sso">已有账号？立即登录</a>
+          <a href="/">已有账号？立即登录</a>
         </div>
       </div>
     </div>

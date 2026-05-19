@@ -11,7 +11,7 @@ public class SsoClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${sso.service.url:http://localhost:8080/sso}")
+    @Value("${sso.service.url:http://localhost:8080}")
     private String ssoServiceUrl;
 
     public SsoClient(RestTemplate restTemplate) {
@@ -20,7 +20,7 @@ public class SsoClient {
 
     public String validateTicket(String ticket) {
         try {
-            String url = ssoServiceUrl + "/api/auth/validate-ticket?ticket=" + ticket;
+            String url = ssoServiceUrl + "/v1/auth/validate-ticket?ticket=" + ticket;
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
             if (response != null && Boolean.TRUE.equals(response.get("success"))) {
                 return (String) response.get("username");

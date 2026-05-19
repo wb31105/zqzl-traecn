@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   eureka-server:
-    build:
-      context: .
-      dockerfile: .deploy/docker/backend/eureka-server.Dockerfile
+    image: zqzl/eureka-server:latest
     container_name: zqzl-eureka-server
     ports:
       - "8761:8761"
@@ -18,9 +16,7 @@ services:
     restart: unless-stopped
 
   gateway-server:
-    build:
-      context: .
-      dockerfile: .deploy/docker/backend/gateway-server.Dockerfile
+    image: zqzl/gateway-server:latest
     container_name: zqzl-gateway-server
     ports:
       - "9000:9000"
@@ -39,9 +35,7 @@ services:
     restart: unless-stopped
 
   user-server:
-    build:
-      context: .
-      dockerfile: .deploy/docker/backend/user-server.Dockerfile
+    image: zqzl/user-server:latest
     container_name: zqzl-user-server
     ports:
       - "8081:8081"
@@ -55,9 +49,7 @@ services:
     restart: unless-stopped
 
   sso-server:
-    build:
-      context: .
-      dockerfile: .deploy/docker/backend/sso-server.Dockerfile
+    image: zqzl/sso-server:latest
     container_name: zqzl-sso-server
     ports:
       - "8080:8080"
@@ -68,15 +60,13 @@ services:
         condition: service_started
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - USER_SERVICE_URL=http://user-server:8081/user
+      - USER_SERVICE_URL=http://user-server:8081
     networks:
       - zqzl-network
     restart: unless-stopped
 
   sso-web:
-    build:
-      context: .
-      dockerfile: .deploy/docker/frontend/sso-web.Dockerfile
+    image: zqzl/sso-web:latest
     container_name: zqzl-sso-web
     ports:
       - "3000:80"
@@ -87,9 +77,7 @@ services:
     restart: unless-stopped
 
   user-web:
-    build:
-      context: .
-      dockerfile: .deploy/docker/frontend/user-web.Dockerfile
+    image: zqzl/user-web:latest
     container_name: zqzl-user-web
     ports:
       - "3031:80"
@@ -100,9 +88,7 @@ services:
     restart: unless-stopped
 
   nginx-gateway:
-    build:
-      context: .
-      dockerfile: .deploy/docker/nginx/nginx.Dockerfile
+    image: zqzl/nginx-gateway:latest
     container_name: zqzl-nginx-gateway
     ports:
       - "80:80"

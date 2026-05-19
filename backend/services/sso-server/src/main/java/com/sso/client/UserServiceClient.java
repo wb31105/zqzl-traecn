@@ -9,18 +9,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Map;
 
-@FeignClient(name = "user-server", path = "/user")
+@FeignClient(name = "user-server", path = "")
 public interface UserServiceClient {
 
-    @PostMapping("/api/auth/login")
+    @PostMapping("/v1/auth/login")
     LoginResponse validateLogin(@RequestBody LoginRequest request);
 
-    @PostMapping("/api/auth/register")
+    @PostMapping("/v1/auth/register")
     RegisterResponse register(@RequestBody RegisterRequest request);
 
-    @PostMapping("/api/auth/forgot-password")
+    @PostMapping("/v1/auth/forgot-password")
     ForgotPasswordResponse forgotPassword(@RequestBody ForgotPasswordRequest request);
 
-    @GetMapping("/api/auth/find-user")
+    @GetMapping("/v1/auth/find-user")
     Map<String, Object> findUserByIdentifier(@RequestParam("identifier") String identifier);
 }

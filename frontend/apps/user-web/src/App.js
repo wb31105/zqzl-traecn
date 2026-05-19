@@ -4,7 +4,7 @@ import './App.css';
 import SsoCallback from './components/SsoCallback';
 import UserManagement from './components/UserManagement';
 
-const SSO_WEB_URL = `${window.location.protocol}//${window.location.host}/sso`;
+const SSO_WEB_URL = process.env.REACT_APP_SSO_DOMAIN;
 
 const ProtectedRoute = () => {
   const isAuthenticated = !!localStorage.getItem('sso_token');

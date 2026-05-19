@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL}/sso/api/auth`;
+const API_BASE_URL = `${process.env.REACT_APP_API_DOMAIN}/v1/auth`;
 
 const Login = ({ onLoginSuccess }) => {
   const location = useLocation();
@@ -84,13 +84,7 @@ const Login = ({ onLoginSuccess }) => {
         if (redirect) {
           const url = new URL(redirect);
           const originalPath = url.pathname || '/';
-          let basePath = originalPath;
-          if (basePath.includes('/user-web')) {
-            basePath = '/user-web';
-          } else if (basePath.endsWith('/')) {
-            basePath = basePath.slice(0, -1);
-          }
-          const callbackUrl = `${url.origin}${basePath}/sso/callback?originalPath=${encodeURIComponent(originalPath)}`;
+          const callbackUrl = `${url.origin}/sso/callback?originalPath=${encodeURIComponent(originalPath)}`;
           window.location.href = `${callbackUrl}&ticket=${ticket}&username=${encodeURIComponent(usernameRes)}`;
         } else {
           onLoginSuccess({ username: usernameRes });
@@ -180,8 +174,8 @@ const Login = ({ onLoginSuccess }) => {
       </form>
       
       <div className="auth-links">
-        <a href="/sso/forgot-password">忘记密码？</a>
-        <a href="/sso/register">没有账号？立即注册</a>
+        <a href="/forgot-password">忘记密码？</a>
+        <a href="/register">没有账号？立即注册</a>
       </div>
     </div>
   );

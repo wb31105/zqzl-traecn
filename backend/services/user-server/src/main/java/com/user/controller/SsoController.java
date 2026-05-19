@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/sso")
+@RequestMapping("/v1/sso")
 @CrossOrigin(origins = "http://localhost:3000")
 public class SsoController {
 

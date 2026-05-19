@@ -38,7 +38,7 @@ function ForgotPassword() {
 
   const loadCaptcha = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/sso/api/auth/captcha`);
+      const response = await axios.get(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/captcha`);
       setCaptchaImage(response.data.captchaImage);
       setFormData(prev => ({ ...prev, captchaKey: response.data.captchaKey }));
     } catch (error) {
@@ -60,7 +60,7 @@ function ForgotPassword() {
     }
 
     try {
-      const response = await axios.post('http://localhost:8080/sso/api/auth/forgot-password/verify', {
+      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/forgot-password/verify`, {
         identifier: formData.identifier,
         captcha: formData.captcha,
         captchaKey: formData.captchaKey
@@ -84,7 +84,7 @@ function ForgotPassword() {
 
   const sendVerificationCode = async () => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/sso/api/auth/send-verification-code`, {
+      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/send-verification-code`, {
         email: selectedContact === 'email' ? userEmail : null,
         phone: selectedContact === 'phone' ? userPhone : null,
         type: 'forgot_password'
@@ -121,7 +121,7 @@ function ForgotPassword() {
     }
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/sso/api/auth/forgot-password`, {
+      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/forgot-password`, {
         newPassword: formData.newPassword,
         confirmPassword: formData.confirmPassword,
         verificationCode: formData.verificationCode,
@@ -153,7 +153,7 @@ function ForgotPassword() {
         <div className="auth-card">
           <h2>🎉 密码重置成功</h2>
           <p className="success-message">{message}</p>
-          <button className="btn btn-primary" onClick={() => window.location.href = '/sso'}>
+          <button className="btn btn-primary" onClick={() => window.location.href = '/'}>
             返回登录
           </button>
         </div>
@@ -302,8 +302,8 @@ function ForgotPassword() {
         )}
         
         <div className="auth-links">
-          <a href="/sso">返回登录</a>
-          <a href="/sso/register">没有账号？立即注册</a>
+          <a href="/">返回登录</a>
+          <a href="/register">没有账号？立即注册</a>
         </div>
       </div>
     </div>

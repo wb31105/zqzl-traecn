@@ -25,17 +25,17 @@ spring:
           lower-case-service-id: true
       routes:
         - id: sso-server
-          uri: lb://sso-server
+          uri: lb://SSO-SERVER
           predicates:
-            - Path=/sso/**
+            - Path=/v1/auth/**
           filters:
-            - StripPrefix=0
+            - RewritePath=/v1/auth/(?<remaining>.*), /sso/v1/auth/${remaining}
         - id: user-server
-          uri: lb://user-server
+          uri: lb://USER-SERVER
           predicates:
-            - Path=/user/**
+            - Path=/v1/users/**
           filters:
-            - StripPrefix=0
+            - RewritePath=/v1/users/(?<remaining>.*), /user/v1/users/${remaining}
 
 eureka:
   client:

@@ -2,7 +2,19 @@
 
 ## 一、架构调整概述
 
-本次工程化优化对项目部署架构进行了全面升级，实现了**双轨制部署模式**：
+### 1.1 v3.0 域名架构升级（最新）
+
+本次架构升级实现了**基于域名的服务分离架构**，取代原有的路径前缀模式：
+
+✅ **核心变更**：
+- **三域名分离**：sso.bw.com、admin.bw.com、api.bw.com
+- **API 版本化**：所有接口统一添加 `/v1` 版本前缀
+- **环境变量化**：所有域名配置支持多环境切换
+- **路径规范化**：移除服务上下文路径前缀（/sso、/user）
+
+### 1.2 双轨制部署模式（保留）
+
+项目同时支持两种部署模式：
 1. **本地开发模式** - 保留原有 `start-all.sh` 脚本体系
 2. **Docker 容器化部署模式** - 新增 Docker 一键部署体系
 
@@ -10,7 +22,89 @@
 
 ---
 
-## 二、目录结构调整
+## 二、域名架构详解（v3.0 核心特性）
+
+### 2.1 域名规划
+
+| 域名 | 服务角色 | 对应后端服务 | 说明 |
+|------|---------|------------|------|
+| **sso.bw.com** | 前端 - 登录门户 | sso-web | 单点登录、注册、找回密码 |
+| **admin.bw.com** | 前端 - 管理平台 | user-web | 用户管理、系统配置 |
+| **api.bw.com** | 后端 - API 网关 | gateway-server | 所有微服务 API 统一入口 |
+
+### 2.2 API 版本管理架构
+
+```
+api.bw.com
+    ├── /v1/                    # v1 版本 API（当前稳定版）
+    │   ├── /auth/**           # → sso-server:8080
+    │   └── /users/**          # → user-server:8081
+    │
+    └── /v2/                    # 预留 v2 版本（未来扩展）
+        ├── /auth/**
+        └── /users/**
+```
+
+### 2.3 前端环境变量配置矩阵
+
+| 环境变量 | 开发环境 (.env.development) | 测试环境 (.env.test) | 生产环境 (.env.production) |
+|---------|---------------------------|----------------------|--------------------------|
+| `REACT_APP_SSO_DOMAIN` | `http://sso.bw.com` | `http://test-sso.bw.com` | `https://sso.bw.com` |
+| `REACT_APP_ADMIN_DOMAIN` | `http://admin.bw.com` | `http://test-admin.bw.com` | `https://admin.bw.com` |
+| `REACT_APP_API_DOMAIN` | `http://api.bw.com` | `http://test-api.bw.com` | `https://api.bw.com` |
+
+### 2.4 Nginx 多域名配置架构
+
+**配置文件位置**：[frontend/gateway/nginx.conf](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/frontend/gateway/nginx.conf)
+
+```nginx
+http {
+    # 1. SSO 登录门户域名
+    server {
+        listen 80;
+        server_name sso.bw.com;
+        location / { proxy_pass http://sso_web:3000; }
+    }
+
+    # 2. 管理平台域名
+    server {
+        listen 80;
+        server_name admin.bw.com;
+        location / { proxy_pass http://user_web:3031; }
+    }
+
+    # 3. API 网域域名
+    server {
+        listen 80;
+        server_name api.bw.com;
+        location /v1/ { proxy_pass http://backend_gateway:9000; }
+    }
+}
+```
+
+### 2.5 后端路径调整对照表
+
+| 服务 | 调整前路径 | 调整后路径 | 说明 |
+|------|----------|----------|------|
+| **sso-server** | `/sso/api/auth/**` | `/v1/auth/**` | 移除 /sso 上下文，添加 v1 版本 |
+| **user-server** | `/user/api/users/**` | `/v1/users/**` | 移除 /user 上下文，添加 v1 版本 |
+| **gateway-server** | `/sso/**`, `/user/**` | `/v1/auth/**`, `/v1/users/**` | 路由规则同步更新 |
+
+### 2.6 本地开发 hosts 配置
+
+**macOS / Linux**：
+```bash
+sudo -- sh -c "echo '127.0.0.1 sso.bw.com admin.bw.com api.bw.com' >> /etc/hosts"
+```
+
+**Windows**（管理员 CMD）：
+```
+echo 127.0.0.1 sso.bw.com admin.bw.com api.bw.com >> C:\Windows\System32\drivers\etc\hosts
+```
+
+---
+
+## 三、目录结构调整
 
 ### 新增部署目录结构
 
@@ -49,7 +143,7 @@ zqzl-traecn/
 
 ---
 
-## 三、配置文件调整说明
+## 四、配置文件调整说明
 
 ### 3.1 后端服务配置优化
 
@@ -87,9 +181,11 @@ eureka:
 - 本地开发时使用默认值，无需额外配置
 - Docker 部署时通过环境变量覆盖，实现容器间通信
 
-### 3.2 Nginx 配置调整
+### 4.2 Nginx 多域名配置调整
 
-**新增 Docker 专用配置：** [nginx-docker.conf](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/.deploy/docker/nginx/nginx-docker.conf)
+**本地开发 Nginx 配置：** [frontend/gateway/nginx.conf](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/frontend/gateway/nginx.conf)
+
+**Docker 专用配置：** [.deploy/docker/nginx/nginx-docker.conf](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/.deploy/docker/nginx/nginx-docker.conf)
 
 **关键调整：**
 
@@ -110,9 +206,9 @@ upstream backend_gateway {
 
 ---
 
-## 四、Docker 镜像设计
+## 五、Docker 镜像设计
 
-### 4.1 后端服务镜像
+### 5.1 后端服务镜像
 
 **采用多阶段构建（Multi-stage Build）：**
 
@@ -132,7 +228,7 @@ upstream backend_gateway {
 | maven:3.8.6-eclipse-temurin-11 | ~700MB | 构建阶段使用 |
 | eclipse-temurin:11-jre | ~250MB | 运行阶段使用 |
 
-### 4.2 前端应用镜像
+### 5.2 前端应用镜像
 
 **同样采用多阶段构建：**
 
@@ -147,9 +243,9 @@ upstream backend_gateway {
 
 ---
 
-## 五、Docker Compose 编排设计
+## 六、Docker Compose 编排设计
 
-### 5.1 服务依赖关系
+### 6.1 服务依赖关系
 
 ```
 nginx-gateway:80
@@ -161,7 +257,7 @@ nginx-gateway:80
               └── user-server:8081
 ```
 
-### 5.2 健康检查与启动顺序
+### 6.2 健康检查与启动顺序
 
 1. **eureka-server** - 优先启动，健康检查通过后启动后续服务
 2. **gateway-server / user-server** - 依赖 Eureka 启动
@@ -169,7 +265,7 @@ nginx-gateway:80
 4. **sso-web / user-web** - 前端应用，依赖后端服务
 5. **nginx-gateway** - 最后启动，统一入口
 
-### 5.3 网络设计
+### 6.3 网络设计
 
 - 所有服务加入 `zqzl-network` 自定义网络
 - 服务间通过服务名（如 `eureka-server`）通信
@@ -177,9 +273,9 @@ nginx-gateway:80
 
 ---
 
-## 六、部署模式对比
+## 七、部署模式对比
 
-### 6.1 本地开发模式
+### 7.1 本地开发模式
 
 **适用场景：** 开发调试、本地测试
 
@@ -199,7 +295,7 @@ nginx-gateway:80
 - ❌ 环境依赖（Java、Node、Maven）
 - ❌ 端口占用问题
 
-### 6.2 Docker 容器化部署模式
+### 7.2 Docker 容器化部署模式
 
 **适用场景：** 生产部署、演示环境、CI/CD
 
@@ -227,7 +323,7 @@ nginx-gateway:80
 
 ---
 
-## 七、端口映射表
+## 八、端口映射表
 
 | 服务 | 本地端口 | Docker 容器端口 | 说明 |
 |------|----------|----------------|------|
@@ -258,9 +354,9 @@ docker compose up -d user-server
 
 ---
 
-## 九、常见问题排查
+## 十、常见问题排查
 
-### 9.1 Docker 镜像构建失败
+### 10.1 Docker 镜像构建失败
 
 **问题：** `failed to resolve source metadata`
 
@@ -293,7 +389,7 @@ docker pull hello-world
 
 ---
 
-## 十、后续优化方向
+## 十一、后续优化方向
 
 1. **镜像优化** - 使用 Alpine 基础镜像进一步减小体积
 2. **资源限制** - 为容器添加 CPU/内存限制
@@ -304,8 +400,10 @@ docker pull hello-world
 
 ---
 
-## 十一、文档更新记录
+## 十二、文档更新记录
 
 | 版本 | 日期 | 更新内容 | 更新人 |
 |------|------|----------|--------|
-| v1.0 | 2026-05-19 | 初始版本，完成 Docker 化架构设计 | 系统 |
+| v3.0 | 2026-05-19 | 域名架构升级，三域名分离 + API 版本化 | 系统 |
+| v2.0 | 2026-05-19 | Docker 容器化部署架构设计 | 系统 |
+| v1.0 | 2026-05-19 | 初始版本 | 系统 |

@@ -56,7 +56,7 @@ function App() {
 
   return (
     <div className="App">
-      <BrowserRouter basename="/sso">
+      <BrowserRouter basename="/">
         <Routes>
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
