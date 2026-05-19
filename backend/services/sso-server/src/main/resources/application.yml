@@ -12,7 +12,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
   instance:
@@ -21,7 +21,7 @@ eureka:
 
 user:
   service:
-    url: http://user-server/user
+    url: ${USER_SERVICE_URL:http://user-server/user}
 
 sso:
   ticket:

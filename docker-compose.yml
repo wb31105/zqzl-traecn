@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  eureka-server:
+    build:
+      context: .
+      dockerfile: .deploy/docker/backend/eureka-server.Dockerfile
+    container_name: zqzl-eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - zqzl-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/eureka/apps"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  gateway-server:
+    build:
+      context: .
+      dockerfile: .deploy/docker/backend/gateway-server.Dockerfile
+    container_name: zqzl-gateway-server
+    ports:
+      - "9000:9000"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - zqzl-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  user-server:
+    build:
+      context: .
+      dockerfile: .deploy/docker/backend/user-server.Dockerfile
+    container_name: zqzl-user-server
+    ports:
+      - "8081:8081"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - zqzl-network
+    restart: unless-stopped
+
+  sso-server:
+    build:
+      context: .
+      dockerfile: .deploy/docker/backend/sso-server.Dockerfile
+    container_name: zqzl-sso-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      user-server:
+        condition: service_started
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - USER_SERVICE_URL=http://user-server:8081/user
+    networks:
+      - zqzl-network
+    restart: unless-stopped
+
+  sso-web:
+    build:
+      context: .
+      dockerfile: .deploy/docker/frontend/sso-web.Dockerfile
+    container_name: zqzl-sso-web
+    ports:
+      - "3000:80"
+    networks:
+      - zqzl-network
+    depends_on:
+      - sso-server
+    restart: unless-stopped
+
+  user-web:
+    build:
+      context: .
+      dockerfile: .deploy/docker/frontend/user-web.Dockerfile
+    container_name: zqzl-user-web
+    ports:
+      - "3031:80"
+    networks:
+      - zqzl-network
+    depends_on:
+      - user-server
+    restart: unless-stopped
+
+  nginx-gateway:
+    build:
+      context: .
+      dockerfile: .deploy/docker/nginx/nginx.Dockerfile
+    container_name: zqzl-nginx-gateway
+    ports:
+      - "80:80"
+    depends_on:
+      - sso-web
+      - user-web
+      - gateway-server
+    networks:
+      - zqzl-network
+    restart: unless-stopped
+
+networks:
+  zqzl-network:
+    driver: bridge
+    name: zqzl-network
