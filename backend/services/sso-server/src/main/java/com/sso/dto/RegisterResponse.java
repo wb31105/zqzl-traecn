@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class RegisterResponse {
     private boolean success;
     private String message;
+    private String userId;
 }

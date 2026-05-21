@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package com.sso.grpc;
+
+option java_package = "com.sso.grpc";
+option java_outer_classname = "SsoServiceProto";
+
+service SsoService {
+  rpc ValidateTicket(TicketValidationRequest) returns (TicketValidationResponse) {}
+}
+
+message TicketValidationRequest {
+  string ticket = 1;
+}
+
+message TicketValidationResponse {
+  bool valid = 1;
+  string username = 2;
+  string message = 3;
+}

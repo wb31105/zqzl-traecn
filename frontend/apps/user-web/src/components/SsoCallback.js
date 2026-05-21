@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 
-const SSO_WEB_URL = process.env.REACT_APP_SSO_DOMAIN;
-const API_DOMAIN = process.env.REACT_APP_API_DOMAIN;
+const SSO_WEB_URL = '/';
+const API_BASE_URL = '';
 
 const SsoCallback = () => {
   const location = useLocation();
@@ -30,7 +30,7 @@ const SsoCallback = () => {
   const validateTicket = async (ticket, username, originalPath) => {
     try {
       console.log('开始验证票据:', ticket);
-      const response = await axios.get(`${API_DOMAIN}/v1/auth/validate-ticket`, {
+      const response = await axios.get(`${API_BASE_URL}/v1/auth/validate-ticket`, {
         params: { ticket }
       });
 

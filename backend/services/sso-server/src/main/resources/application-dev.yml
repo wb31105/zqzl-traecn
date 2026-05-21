@@ -1,10 +1,17 @@
 server:
   port: 8080
 
+grpc:
+  server:
+    port: 9090
+  client:
+    user-server:
+      address: static://localhost:9091
+
+user:
+  service:
+    url: http://localhost:8081
+
 logging:
   level:
-    root: INFO
     com.sso: DEBUG
-    org.springframework.security: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

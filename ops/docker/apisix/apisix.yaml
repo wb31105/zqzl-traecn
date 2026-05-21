@@ -1,0 +1,51 @@
+routes:
+  - id: sso-web-route
+    uri: /
+    priority: 1
+    upstream:
+      type: roundrobin
+      nodes:
+        "sso-web:80": 1
+
+  - id: sso-web-static-route
+    uri: /static/*
+    priority: 2
+    upstream:
+      type: roundrobin
+      nodes:
+        "sso-web:80": 1
+
+  - id: user-web-route
+    uri: /user/*
+    priority: 3
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/user/(.*)", "/$1"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "user-web:80": 1
+
+  - id: sso-server-route
+    uri: /v1/auth/*
+    priority: 4
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/v1/auth/(.*)", "/sso/v1/auth/$1"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "sso-server:8080": 1
+
+  - id: user-server-route
+    uri: /v1/users/*
+    priority: 5
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/v1/users/(.*)", "/v1/users/$1"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "user-server:8080": 1
+
+#END

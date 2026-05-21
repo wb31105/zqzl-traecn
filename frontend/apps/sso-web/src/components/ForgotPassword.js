@@ -38,7 +38,7 @@ function ForgotPassword() {
 
   const loadCaptcha = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/captcha`);
+      const response = await axios.get('/v1/auth/captcha');
       setCaptchaImage(response.data.captchaImage);
       setFormData(prev => ({ ...prev, captchaKey: response.data.captchaKey }));
     } catch (error) {
@@ -84,7 +84,7 @@ function ForgotPassword() {
 
   const sendVerificationCode = async () => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/send-verification-code`, {
+      const response = await axios.post('/v1/auth/send-verification-code', {
         email: selectedContact === 'email' ? userEmail : null,
         phone: selectedContact === 'phone' ? userPhone : null,
         type: 'forgot_password'
@@ -121,7 +121,7 @@ function ForgotPassword() {
     }
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/forgot-password`, {
+      const response = await axios.post('/v1/auth/forgot-password', {
         newPassword: formData.newPassword,
         confirmPassword: formData.confirmPassword,
         verificationCode: formData.verificationCode,

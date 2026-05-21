@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const API_BASE_URL = `${process.env.REACT_APP_API_DOMAIN}/v1/auth`;
+const API_BASE_URL = '/v1/auth';
 
 const Login = ({ onLoginSuccess }) => {
   const location = useLocation();

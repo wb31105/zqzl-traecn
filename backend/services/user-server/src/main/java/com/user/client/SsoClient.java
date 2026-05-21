@@ -1,29 +1,26 @@
 package com.user.client;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.sso.grpc.SsoServiceGrpc;
+import com.sso.grpc.SsoServiceProto;
+import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
-
-import java.util.Map;
 
 @Component
 public class SsoClient {
 
-    private final RestTemplate restTemplate;
-
-    @Value("${sso.service.url:http://localhost:8080}")
-    private String ssoServiceUrl;
-
-    public SsoClient(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
+    @GrpcClient("sso-server")
+    private SsoServiceGrpc.SsoServiceBlockingStub ssoServiceStub;
 
     public String validateTicket(String ticket) {
         try {
-            String url = ssoServiceUrl + "/v1/auth/validate-ticket?ticket=" + ticket;
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            if (response != null && Boolean.TRUE.equals(response.get("success"))) {
-                return (String) response.get("username");
+            SsoServiceProto.TicketValidationRequest request = SsoServiceProto.TicketValidationRequest.newBuilder()
+                    .setTicket(ticket)
+                    .build();
+            
+            SsoServiceProto.TicketValidationResponse response = ssoServiceStub.validateTicket(request);
+            
+            if (response.getValid()) {
+                return response.getUsername();
             }
             return null;
         } catch (Exception e) {

@@ -152,11 +152,11 @@ public class AuthService {
 
     public RegisterResponse register(RegisterRequest request) {
         if (!StringUtils.hasText(request.getVerificationCode())) {
-            return new RegisterResponse(false, "请输入验证码");
+            return new RegisterResponse(false, "请输入验证码", null);
         }
         
         if (!verificationCodeService.verifyCode(request.getPhone(), request.getVerificationCode())) {
-            return new RegisterResponse(false, "验证码错误或已过期");
+            return new RegisterResponse(false, "验证码错误或已过期", null);
         }
         
         RegisterResponse response = userServiceClient.register(request);

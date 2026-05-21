@@ -1,21 +1,41 @@
 server:
-  port: 8081
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
     name: user-server
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    url: jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
 
-eureka:
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:9091}
   client:
-    service-url:
-      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: true
-    instance-id: ${spring.application.name}:${server.port}
+    sso-server:
+      address: static://${SSO_GRPC_HOST:sso-server}:${SSO_GRPC_PORT:9090}
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext
+
+sso:
+  service:
+    url: ${SSO_SERVICE_URL:http://sso-server:8080}
 
 user:
   jwt:

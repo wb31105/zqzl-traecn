@@ -1,24 +1,28 @@
 # SSO 单点登录系统 - 真实业务流程文档
 
-## 系统架构概述（真实）
+## 系统架构概述（v4.0 - APISIX 网关版）
 
-本系统采用前后端分离、微服务架构，包含以下真实组件：
+本系统采用前后端分离、轻量化微服务架构，使用 APISIX 网关 + gRPC 服务间通信：
 
 ### 前端应用
 - **SSO 认证前端 (sso-web)**: 端口 3000，React 应用，提供登录、注册、忘记密码页面
-- **用户管理前端 (user-web)**: 端口 3001，React 应用，提供用户管理功能
+- **用户管理前端 (user-web)**: 端口 3031，React 应用，提供用户管理功能
 
 ### 后端服务
-- **SSO 认证服务 (sso-server)**: 端口 8080，Spring Boot 应用
-  - 内部组件: AuthService, CaptchaService, TicketService, UserServiceClient
+- **SSO 认证服务 (sso-server)**: HTTP 端口 8080，gRPC 端口 9090，Spring Boot 应用
+  - 内部组件: AuthService, CaptchaService, TicketService, UserServiceClient (gRPC)
   - 负责: 登录认证、注册转发、密码重置转发、验证码生成、票据管理
   
-- **用户服务 (user-server)**: 端口 8081，Spring Boot 应用
+- **用户服务 (user-server)**: HTTP 端口 8081，gRPC 端口 9091，Spring Boot 应用
   - 内部组件: UserService, CaptchaService, JwtUtil
   - 负责: 用户数据管理、密码验证、用户CRUD操作
 
+### 基础设施
+- **APISIX 网关**: 端口 80，路由转发、HTTP 代理
+- **etcd**: 端口 2379，APISIX 配置存储
+
 ### 数据存储
-- **数据库 (DB)**: 用户数据持久化存储（MySQL/H2）
+- **数据库 (DB)**: 用户数据持久化存储（H2 内存数据库）
 - **内存存储**: ConcurrentHashMap 用于验证码、票据、登录失败次数（服务内部）
 
 ---
@@ -65,8 +69,8 @@ sequenceDiagram
         end
     end
     
-    SSO_Server->>User_Server: 8. POST /user/api/auth/login (RestTemplate调用)
-    Note over SSO_Server,User_Server: UserServiceClient.validateLogin()
+    SSO_Server->>User_Server: 8. gRPC ValidateLoginRequest
+    Note over SSO_Server,User_Server: UserServiceClient.validateLogin() (gRPC)
     Note over User_Server: 内部调用 UserService.login()
     
     User_Server->>DB: 9. SELECT * FROM user WHERE username = ?
@@ -124,8 +128,8 @@ sequenceDiagram
    - user-server: 数据库 user 表的 login_attempts 字段
 
 3. **服务间调用**:
-   - sso-server 通过 UserServiceClient + RestTemplate 调用 user-server
-   - 调用地址: `http://localhost:8081/user/api/auth/login`
+   - sso-server 通过 UserServiceClient + gRPC 调用 user-server
+   - gRPC 地址: `static://user-server:9091` (Docker) 或 `static://localhost:9091` (开发环境)
 
 4. **票据机制**:
    - TicketService 是 sso-server 内部的 Service 类
@@ -175,8 +179,8 @@ sequenceDiagram
     
     Note over SSO_Server: 验证通过，移除验证码
     
-    SSO_Server->>User_Server: 7. POST /user/api/auth/register (RestTemplate)
-    Note over SSO_Server,User_Server: UserServiceClient.register()
+    SSO_Server->>User_Server: 7. gRPC RegisterRequest
+    Note over SSO_Server,User_Server: UserServiceClient.register() (gRPC)
     
     Note over User_Server: 内部调用 UserService.register()
     
@@ -292,7 +296,7 @@ sequenceDiagram
         SSO_Server-->>SSO_Web: {success: false, message: "验证码错误或已过期"}
     end
     
-    SSO_Server->>User_Server: 12. POST /user/api/auth/forgot-password (RestTemplate)
+    SSO_Server->>User_Server: 12. gRPC ForgotPasswordRequest
     
     Note over User_Server: 内部调用 UserService.forgotPassword()
     
@@ -652,14 +656,15 @@ graph TD
 
 ---
 
-## 总结（真实情况）
+## 总结（v4.0 - APISIX 网关版）
 
 本系统真实实现了一个完整的 SSO 单点登录系统，包含：
 
-1. ✅ **两个前端应用**: SSO认证前端(3000) + 用户管理前端(3001)
+1. ✅ **两个前端应用**: SSO认证前端(3000) + 用户管理前端(3031)
 2. ✅ **两个后端服务**: sso-server(8080) + user-server(8081)
-3. ✅ **服务间通信**: sso-server 通过 RestTemplate HTTP 调用 user-server
-4. ✅ **内存存储**: sso-server 用 ConcurrentHashMap 存验证码、票据、登录失败计数
-5. ✅ **数据库存储**: user-server 持久化用户数据
-6. ✅ **无独立中间服务**: CaptchaService、TicketService 都是服务内部类，不是独立服务
-7. ✅ **无消息队列/缓存中间件**: 所有内存状态都在服务内部维护
+3. ✅ **APISIX 网关**: 统一入口，路由转发，HTTP 代理
+4. ✅ **服务间通信**: sso-server 和 user-server 通过 gRPC 高性能通信
+5. ✅ **内存存储**: sso-server 用 ConcurrentHashMap 存验证码、票据、登录失败计数
+6. ✅ **数据库存储**: user-server 持久化用户数据
+7. ✅ **无注册中心**: 通过 Docker 网络 + 静态地址通信
+8. ✅ **无独立中间服务**: CaptchaService、TicketService 都是服务内部类，不是独立服务

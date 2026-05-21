@@ -28,7 +28,7 @@ function Register() {
     }
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/send-verification-code`, {
+      const response = await axios.post('/v1/auth/send-verification-code', {
         phone: formData.phone,
         type: 'register'
       });
@@ -64,7 +64,7 @@ function Register() {
     }
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/register`, formData);
+      const response = await axios.post('/v1/auth/register', formData);
       if (response.data.success) {
         setIsSuccess(true);
         setMessage('注册成功！');
