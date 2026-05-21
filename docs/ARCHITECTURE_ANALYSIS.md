@@ -5,7 +5,7 @@
 当前项目是一个基于 **APISIX 网关 + gRPC 微服务** 的轻量化架构，包含：
 - 2 个后端微服务（sso-server、user-server）
 - 2 个前端应用（sso-web、user-web）
-- APISIX 网关 + etcd 配置存储
+- APISIX 网关（standalone 模式，YAML 本地配置）
 - H2 内存数据库
 
 ---
@@ -174,10 +174,12 @@
 
 ### 短期（1-2周）
 1. ✅ 修复当前编译错误（已完成）
-2. ✅ 修复 Docker etcd 镜像问题（已完成）
-3. 🔧 实现 JWT 认证拦截器
-4. 🔧 实现基于角色的权限控制
-5. 🔧 替换 H2 为 MySQL
+2. ✅ 修复 APISIX 网关启动问题（已完成）
+3. ✅ 修复管理平台 /user 路径 404 问题（已完成）
+4. ✅ 移除 etcd 依赖，改用 standalone 模式（已完成）
+5. 🔧 实现 JWT 认证拦截器
+6. 🔧 实现基于角色的权限控制
+7. 🔧 替换 H2 为 MySQL
 
 ### 中期（1-2月）
 6. 引入 Redis 分布式缓存
@@ -199,25 +201,31 @@
 
 ### ✅ 已修复问题
 
-1. **Docker etcd 镜像问题**：
-   - 原问题：`bitnami/etcd:3.5.9` 镜像不存在
-   - 修复：替换为 `registry.k8s.io/etcd:3.5.15-0`
-   - 文件：[docker-compose.yml](../docker-compose.yml)
+1. **APISIX 网关启动问题**：
+   - 原问题 1：`sh: /usr/local/apisix/bin/apisix: not found` - CMD 路径错误
+   - 原问题 2：`ERROR: Admin API can only be used with etcd config_center` - 配置冲突
+   - 修复：使用 standalone 模式，更新 CMD 路径为 `/usr/bin/apisix`
+   - 文件：[Dockerfile](../ops/docker/apisix/Dockerfile)、[config.yaml](../ops/docker/apisix/config.yaml)
 
-2. **SecurityConfig 路径不匹配**：
+2. **管理平台 /user 路径 404**：
+   - 原问题：APISIX 路由 `/user/*` 不匹配 `/user`（无子路径）
+   - 修复：添加 `/user` 和 `/user/` 的精确匹配路由
+   - 文件：[apisix.yaml](../ops/docker/apisix/apisix.yaml)
+
+3. **SecurityConfig 路径不匹配**：
    - 原问题：`/api/auth/**` 与实际路径 `/v1/auth/**` 不匹配
    - 修复：修正为 `/v1/auth/**`
    - 文件：[SecurityConfig.java](../backend/services/sso-server/src/main/java/com/sso/config/SecurityConfig.java#L26-L28)
 
-3. **文档梳理**：
-   - 原问题：3个文档内容冗余，层次混乱
-   - 修复：重新整理为 4 个结构化文档
-     - [ARCHITECTURE.md](ARCHITECTURE.md) - 技术架构
-     - [BUSINESS_FLOW.md](BUSINESS_FLOW.md) - 业务流程
-     - [DEPLOYMENT.md](DEPLOYMENT.md) - 部署指南
-     - [API.md](API.md) - 接口文档
-   - 删除了旧的冗余文档：`BUSINESS_FLOW.md`、`DEPLOYMENT_ARCHITECTURE.md`
-
 4. **后端编译**：
    - sso-server 编译成功 ✅
    - user-server 编译成功 ✅
+
+5. **文档梳理与 etcd 移除**：
+   - 原问题：文档内容冗余，层次混乱，且包含 etcd 相关描述
+   - 修复：重新整理文档，移除 etcd 服务，改用 APISIX standalone 模式
+   - 变更文件：
+     - [docker-compose.yml](../docker-compose.yml) - 移除 etcd 服务
+     - [ARCHITECTURE.md](ARCHITECTURE.md) - 技术架构更新
+     - [DEPLOYMENT.md](DEPLOYMENT.md) - 部署指南更新
+     - [ARCHITECTURE_ANALYSIS.md](ARCHITECTURE_ANALYSIS.md) - 架构分析更新

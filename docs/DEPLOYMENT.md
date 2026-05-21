@@ -28,7 +28,6 @@
 
 | 服务 | 容器端口 | 映射端口 | 说明 |
 |------|----------|----------|------|
-| etcd | 2379 | 2379 | APISIX 配置存储 |
 | APISIX | 9080 | 80 | 网关 HTTP |
 | APISIX | 9443 | 443 | 网关 HTTPS |
 | sso-server | 8080 | 8080 | 认证服务 |
@@ -353,14 +352,22 @@ lsof -ti :8080 -ti :8081 -ti :9090 -ti :9091 -ti :3000 -ti :3031 -ti :80
 kill $(lsof -ti :8080 -ti :8081 -ti :9090 -ti :9091 -ti :3000 -ti :3031 -ti :80)
 ```
 
-### 6.6 etcd 镜像问题
+### 6.6 APISIX 网关启动问题
 
-**问题**：`manifest for bitnami/etcd:3.5.9 not found`
+**问题 1**：`sh: /usr/local/apisix/bin/apisix: not found`
 
-**原因**：bitnami/etcd:3.5.9 镜像已被移除或不存在
+**原因**：基础镜像 `apache/apisix:2.15.0-alpine` 中可执行文件路径是 `/usr/bin/apisix`，不是 `/usr/local/apisix/bin/apisix`
 
-**解决方案**：
-使用可用的镜像版本（如 3.5.12），已在 `docker-compose.yml` 中修复。
+**解决方案**：Dockerfile 中使用正确的 CMD 命令：
+```
+CMD ["sh", "-c", "/usr/bin/apisix init && /usr/local/openresty/bin/openresty -p /usr/local/apisix -g 'daemon off;'"]
+```
+
+**问题 2**：`ERROR: Admin API can only be used with etcd config_center`
+
+**原因**：`config.yaml` 中设置了 `enable_admin: true`，但当前配置使用 standalone 模式（`config_center: yaml`）
+
+**解决方案**：将 `enable_admin` 设为 `false`，或改用 etcd 模式
 
 ---
 

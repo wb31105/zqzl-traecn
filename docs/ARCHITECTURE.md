@@ -51,11 +51,11 @@
 
 ### 1.3 技术栈
 
-| 层级         | 技术选型            | 版本      | 说明          |
-| ---------- | --------------- | ------- | ----------- |
-| **网关层**    | APISIX          | 2.15    | 高性能 API 网关  |
-| **配置存储**   | etcd            | 3.5     | APISIX 配置存储 |
-| **前端框架**   | React           | 18.x    | SPA 单页应用    |
+| 层级         | 技术选型            | 版本      | 说明                       |
+| ---------- | --------------- | ------- | ------------------------ |
+| **网关层**    | APISIX          | 2.15    | 高性能 API 网关（standalone 模式） |
+| **网关配置**   | YAML            | -       | 本地文件配置，无需 etcd          |
+| **前端框架**   | React           | 18.x    | SPA 单页应用                 |
 | **前端路由**   | React Router    | 6.x     | 路由管理        |
 | **后端框架**   | Spring Boot     | 2.7.18  | Java 微服务框架  |
 | **服务间通信**  | gRPC            | 1.59.0  | 高性能 RPC 框架  |
@@ -224,12 +224,15 @@ zqzl-traecn/
 - 负载均衡
 - 跨域处理
 
-**路由规则**：
+**路由规则**（最长前缀匹配优先）：
 
-- `/` → sso-web:80（登录门户）
-- `/user/*` → user-web:80（管理平台）
-- `/v1/auth/*` → sso-server:8080（认证服务）
-- `/v1/users/*` → user-server:8080（用户服务）
+| 路由 | URI | 优先级 | 目标服务 | 说明 |
+|------|-----|--------|---------|------|
+| sso-server-route | `/v1/auth/*` | 10 | sso-server:8080 | 认证服务API，最高优先级 |
+| user-server-route | `/v1/users/*` | 9 | user-server:8080 | 用户服务API |
+| user-web-root-route | `/user` | 8 | user-web:80 | 管理平台根路径（精确匹配） |
+| user-web-all-route | `/user/*` | 7 | user-web:80 | 管理平台所有子路径和静态资源 |
+| sso-web-catchall-route | `/*` | 1 | sso-web:80 | 兜底路由，匹配所有其他路径（/、/login、/register、/forgot-password 等 SPA 路由） |
 
 ***
 
