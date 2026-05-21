@@ -44,7 +44,7 @@ sequenceDiagram
     
     SSO_Server->>User_Server: 8. gRPC ValidateLoginRequest
     Note over SSO_Server,User_Server: UserServiceClient.validateLogin() (gRPC)
-    Note over User_Server: 内部调用 UserService.login()
+    Note over User_Server: 内部调用 UserGrpcServiceImpl.validateLogin()
     
     User_Server->>DB: 9. SELECT * FROM user WHERE username = ?
     DB-->>User_Server: 返回用户记录
@@ -60,14 +60,10 @@ sequenceDiagram
         SSO_Web->>User: 显示错误信息
     else 密码错误
         User_Server->>DB: UPDATE user SET login_attempts = login_attempts + 1
-        User_Server-->>SSO_Server: {success: false, message: "用户名或密码错误", requireCaptcha: ?}
+        User_Server-->>SSO_Server: {success: false, message: "用户名或密码错误"}
         Note over SSO_Server: loginAttempts.merge(username, 1, +)
-        alt 失败次数达到阈值
-            SSO_Server-->>SSO_Web: 返回 requireCaptcha: true
-            SSO_Web->>SSO_Server: GET /v1/auth/captcha
-            SSO_Web->>User: 显示验证码输入框
-        end
         SSO_Server-->>SSO_Web: 返回错误响应
+        Note over SSO_Web: 检查返回的 requireCaptcha 决定是否显示验证码
         SSO_Web->>User: 显示错误信息
     else 登录成功
         User_Server->>DB: UPDATE user SET login_attempts=0, last_login_time=NOW()
@@ -75,13 +71,14 @@ sequenceDiagram
         
         Note over SSO_Server: 内部调用 TicketService.generateTicket()
         Note over SSO_Server: 生成 ST-UUID 存入内存 Map
+        Note over SSO_Server: 注意: 返回给前端的是 ticket(ST-xxx)，不是 JWT
         
         SSO_Server-->>SSO_Web: 10. {success: true, token: ST-xxx, username: xxx}
         SSO_Web->>SSO_Web: 11. localStorage.setItem('token', ST-xxx)
         
         alt 有 redirect 参数
             SSO_Web->>User: 重定向到 redirect 回调地址
-            Note over User: URL: {redirect}/sso/callback?ticket=ST-xxx&username=xxx
+            Note over User: URL: {redirect}/sso/callback?originalPath={path}&ticket=ST-xxx&username=xxx
         else 无 redirect
             SSO_Web->>User: 显示登录成功
         end
@@ -473,36 +470,60 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant User as 用户
-    participant App as 业务应用
+    participant App_Web as 业务应用前端(user-web)
+    participant SSO_Web as SSO前端(3000)
     participant SSO_Server as SSO服务(8080)
-    participant User_Server as 用户服务(8081)
 
-    User->>App: 1. 未登录状态访问业务应用
-    App->>User: 2. 重定向到 SSO 登录页
-    Note over User: URL: http://localhost:3000?redirect=http://app/callback
+    User->>App_Web: 1. 未登录状态访问业务应用 /user
+    App_Web->>App_Web: 2. ProtectedRoute 检查 localStorage 是否有 sso_token
+    alt 没有 sso_token
+        App_Web->>User: 3. 重定向到 SSO 登录页
+        Note over User: URL: http://localhost:3000?redirect=http://localhost/user
+    end
     
-    User->>SSO_Server: 3. 完成 SSO 登录流程(见登录流程图)
-    SSO_Server-->>User: 4. 登录成功，重定向到应用回调地址
-    Note over User: URL: http://app/callback?ticket=ST-xxx&username=xxx
+    User->>SSO_Web: 4. 完成 SSO 登录流程(见登录流程图)
+    SSO_Web->>User: 5. 登录成功，重定向到应用回调地址
+    Note over User: URL: http://localhost/user/sso/callback?originalPath=/users&ticket=ST-xxx&username=xxx
     
-    User->>App: 5. 访问应用回调地址
-    App->>SSO_Server: 6. GET /v1/auth/validate-ticket?ticket=ST-xxx
+    User->>App_Web: 6. 访问应用回调地址 /user/sso/callback
+    App_Web->>App_Web: 7. SsoCallback 组件获取 URL 参数(ticket, username, originalPath)
+    
+    App_Web->>SSO_Server: 8. GET /v1/auth/validate-ticket?ticket=ST-xxx
+    Note over App_Web,SSO_Server: 前端直接调用 REST API 验证票据
     
     Note over SSO_Server: 内部调用 TicketService.validateTicket()
     Note over SSO_Server: 从 ConcurrentHashMap 查找 ticket 对应的 username
     
     alt 票据有效
         Note over SSO_Server: TicketService.removeTicket() 从 Map 删除
-        SSO_Server-->>App: 7. {success: true, username: xxx, message: "验证成功"}
-        App->>User_Server: 8. 可选: GET /v1/users/username/{username} 获取用户详情
-        User_Server-->>App: 返回用户信息
-        App->>App: 9. 创建应用本地会话(Session/JWT)
-        App->>User: 10. 进入应用首页
+        SSO_Server-->>App_Web: 9. {success: true, username: xxx, message: "验证成功"}
+        App_Web->>App_Web: 10. 保存到 localStorage
+        Note over App_Web: localStorage.setItem('sso_token', ticket)<br>localStorage.setItem('username', username)
+        App_Web->>User: 11. 跳转到 originalPath(如 /users)
     else 票据无效/已使用
-        SSO_Server-->>App: {success: false, message: "无效的票据"}
-        App->>User: 重定向到 SSO 重新登录
+        SSO_Server-->>App_Web: {success: false, message: "无效的票据"}
+        App_Web->>User: 显示错误，2秒后跳转到 SSO 重新登录
     end
 ```
+
+### 5.1 关键实现说明
+
+1. **票据验证是前端直接调用 REST API**
+   - 业务应用前端 (user-web) 的 SsoCallback 组件直接调用 `/v1/auth/validate-ticket`
+   - 不是后端调用，也不是 gRPC 调用
+
+2. **没有创建应用本地会话**
+   - 验证成功后只是将 ticket 保存到 localStorage 的 'sso_token'
+   - 没有生成新的 JWT 或 Session
+   - 也没有调用 user-server 获取用户详情
+
+3. **会话检查是纯前端实现**
+   - ProtectedRoute 组件通过检查 localStorage.getItem('sso_token') 判断是否登录
+   - 没有与后端进行会话验证
+
+4. **每个前端应用都需要自己的 callback 路由**
+   - user-web 有 `/sso/callback` 路由
+   - 新的前端应用也需要实现类似的 SsoCallback 组件
 
 ---
 
