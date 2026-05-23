@@ -1,6 +1,16 @@
 # SSO 认证体系问题分析与解决方案
 
-## 一、当前实现现状概述
+## 重要说明：已完成标准 OAuth2 授权码模式改造
+
+本文档分析的**所有问题已通过标准 OAuth2.0 Authorization Code 模式重构解决**。
+
+改造后架构详见：
+- [BUSINESS_FLOW.md - OAuth2 授权码登录流程](BUSINESS_FLOW.md#一oauth2-授权码登录流程)
+- 本章节剩余内容为改造前问题分析记录
+
+---
+
+## 一、（改造前）当前实现现状概述
 
 ### 1.1 实际运行流程
 
@@ -556,3 +566,109 @@ public String validateTicket(String ticket) {
 | ARCH-2 | 架构 | gRPC 票据验证客户端存在但未使用 | 低 |
 | ARCH-3 | 架构 | 无法实现单点登出 | 中 |
 | ARCH-4 | 架构 | 无统一认证 SDK | 中 |
+
+---
+
+## 七、已完成改造：标准 OAuth2 授权码模式
+
+### 7.1 改造概述
+
+采用 **Spring Security OAuth2 Authorization Server** 实现标准的 OAuth2.0 Authorization Code + PKCE 流程。
+
+### 7.2 改造后架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           SSO 授权服务器 (8080)                           │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │  Authorization Server                                               │  │
+│  │  • Session-Cookie 会话 (SSO_SESSION)                                │  │
+│  │  • OAuth2 端点: /oauth2/authorize, /oauth2/token, /oauth2/jwks     │  │
+│  │  • 客户端注册管理 (Client Repository)                               │  │
+│  │  • JWK RSA 密钥对 (JWT 签名验证)                                    │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │  登录页面 (Thymeleaf)                                               │  │
+│  │  • GET /login 显示登录表单                                          │  │
+│  │  • POST /login 表单提交认证                                         │  │
+│  │  • 登出: GET /logout                                                │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────┬──────────────────────────┘
+                                               │
+                    ┌──────────────────────────┼──────────────────────────┐
+                    │                          │                          │
+          ┌─────────▼─────────┐      ┌────────▼─────────┐      ┌────────▼─────────┐
+          │   user-web (3001)  │      │  third-party-1  │      │  third-party-2  │
+          │   用户管理系统     │      │   第三方应用     │      │   第三方应用     │
+          │   OAuth2 Client   │      │   OAuth2 Client │      │   OAuth2 Client │
+          └─────────┬─────────┘      └──────────────────┘      └──────────────────┘
+                    │
+          ┌─────────▼─────────┐
+          │  user-server(8081)│
+          │  资源服务器       │
+          │  Bearer JWT 验证  │
+          └───────────────────┘
+```
+
+### 7.3 关键改进点（解决的问题）
+
+| 原问题 | 改造后解决方案 |
+|--------|----------------|
+| **SEC-1 后端API裸奔** | user-server 改为 OAuth2 Resource Server，所有 API 需 Bearer Token 验证 |
+| **SEC-2 前端验证票据** | 改为标准 OAuth2 流程：Code → Token，Token 由后端安全交换 |
+| **SEC-3 凭证不安全** | Access Token 有签名、过期时间（2小时），Refresh Token（30天） |
+| **SEC-5 票据无过期** | Token 有明确过期时间，自动刷新机制 |
+| **SEC-6 开放重定向** | 客户端必须提前注册 redirect_uri，严格校验 |
+| **ARCH-1 重复实现** | 基于标准 OAuth2，有成熟 SDK 可复用 |
+| **ARCH-3 无法单点登出** | SSO 统一会话管理，支持全局登出 |
+
+### 7.4 新增核心文件
+
+| 文件 | 说明 |
+|------|------|
+| [AuthorizationServerConfig.java](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java) | OAuth2 授权服务器配置 |
+| [JwkConfig.java](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/services/sso-server/src/main/java/com/sso/config/JwkConfig.java) | RSA JWK 密钥配置 |
+| [Client.java](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/services/sso-server/src/main/java/com/sso/entity/Client.java) | OAuth2 客户端实体 |
+| [ClientRepository.java](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/services/sso-server/src/main/java/com/sso/repository/ClientRepository.java) | 客户端仓储 |
+| [LoginController.java](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/services/sso-server/src/main/java/com/sso/controller/LoginController.java) | 登录页面控制器 |
+| [UserInfoController.java](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/services/sso-server/src/main/java/com/sso/controller/UserInfoController.java) | OIDC 用户信息端点 |
+| [OAuth2Controller.java](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/services/user-server/src/main/java/com/user/controller/OAuth2Controller.java) | 令牌交换接口 |
+| [login.html](file:///Users/wangbo/Project/data-annotation/zqzl/zqzl-traecn/backend/services/sso-server/src/main/resources/templates/login.html) | SSO 统一登录页面 |
+
+### 7.5 配置项说明（无硬编码）
+
+所有环境相关配置通过环境变量或配置文件设置：
+
+**SSO Server (application.yml):**
+```yaml
+sso:
+  oauth2:
+    issuer-uri: ${SSO_ISSUER_URI:http://localhost:8080}
+```
+
+**User Server (application.yml):**
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SSO_ISSUER_URI:http://localhost:8080}
+          jwk-set-uri: ${SSO_JWKS_URI:http://localhost:8080/oauth2/jwks}
+sso:
+  oauth2:
+    client-id: ${SSO_CLIENT_ID:user-web-client}
+    client-secret: ${SSO_CLIENT_SECRET:user-web-secret-123}
+    token-uri: ${SSO_TOKEN_URI:http://localhost:8080/oauth2/token}
+    authorization-uri: ${SSO_AUTH_URI:http://localhost:8080/oauth2/authorize}
+    redirect-uri: ${SSO_REDIRECT_URI:http://localhost:3001/sso/callback}
+```
+
+**前端 (.env.development):**
+```env
+REACT_APP_OAUTH2_AUTH_URI=http://localhost:8080/oauth2/authorize
+REACT_APP_OAUTH2_CLIENT_ID=user-web-client
+REACT_APP_OAUTH2_REDIRECT_URI=http://localhost:3001/sso/callback
+REACT_APP_OAUTH2_SCOPE=openid profile read write
+```

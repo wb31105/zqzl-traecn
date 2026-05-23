@@ -1,17 +1,81 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, Link } from 'react-router-dom';
 import './App.css';
 import SsoCallback from './components/SsoCallback';
 import UserManagement from './components/UserManagement';
+import axios from 'axios';
 
-const SSO_WEB_URL = '/';
+axios.interceptors.request.use(
+  (config) => {
+    const accessToken = localStorage.getItem('access_token');
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      localStorage.clear();
+      redirectToSSO();
+    }
+    return Promise.reject(error);
+  }
+);
+
+const OAUTH2_CONFIG = {
+  authorizationUri: process.env.REACT_APP_OAUTH2_AUTH_URI || 'http://localhost:8080/oauth2/authorize',
+  clientId: process.env.REACT_APP_OAUTH2_CLIENT_ID || 'user-web-client',
+  redirectUri: process.env.REACT_APP_OAUTH2_REDIRECT_URI || 'http://localhost:3001/sso/callback',
+  scope: process.env.REACT_APP_OAUTH2_SCOPE || 'openid profile read write',
+  responseType: 'code'
+};
+
+const redirectToSSO = () => {
+  const originalPath = window.location.pathname;
+  localStorage.setItem('originalPath', originalPath);
+
+  const state = Math.random().toString(36).substring(2, 15);
+  localStorage.setItem('oauth_state', state);
+
+  const params = new URLSearchParams({
+    response_type: OAUTH2_CONFIG.responseType,
+    client_id: OAUTH2_CONFIG.clientId,
+    redirect_uri: OAUTH2_CONFIG.redirectUri,
+    scope: OAUTH2_CONFIG.scope,
+    state: state
+  });
+
+  window.location.href = `${OAUTH2_CONFIG.authorizationUri}?${params.toString()}`;
+};
+
+const isTokenValid = () => {
+  const accessToken = localStorage.getItem('access_token');
+  const loginTime = localStorage.getItem('login_time');
+  const expiresIn = localStorage.getItem('expires_in');
+
+  if (!accessToken || !loginTime || !expiresIn) {
+    return false;
+  }
+
+  const elapsed = (Date.now() - parseInt(loginTime)) / 1000;
+  return elapsed < parseInt(expiresIn) * 0.9;
+};
 
 const ProtectedRoute = () => {
-  const isAuthenticated = !!localStorage.getItem('sso_token');
-  
-  if (!isAuthenticated) {
-    const redirectUrl = encodeURIComponent(window.location.origin + window.location.pathname);
-    window.location.href = `${SSO_WEB_URL}?redirect=${redirectUrl}`;
+  useEffect(() => {
+    if (!isTokenValid()) {
+      redirectToSSO();
+    }
+  }, []);
+
+  if (!isTokenValid()) {
     return null;
   }
   
@@ -19,19 +83,16 @@ const ProtectedRoute = () => {
 };
 
 const Navbar = () => {
-  const username = localStorage.getItem('username');
-  
   const handleLogout = () => {
-    localStorage.removeItem('sso_token');
-    localStorage.removeItem('username');
-    window.location.href = SSO_WEB_URL;
+    localStorage.clear();
+    const logoutUri = (process.env.REACT_APP_OAUTH2_AUTH_URI || 'http://localhost:8080/oauth2/authorize').replace('/oauth2/authorize', '');
+    window.location.href = `${logoutUri}/logout`;
   };
 
   return (
     <nav className="navbar">
       <div className="nav-brand">用户中心管理系统</div>
       <div className="nav-links">
-        <span className="nav-username">欢迎，{username}</span>
         <Link to="/users" className="nav-link">用户管理</Link>
         <button className="logout-button-nav" onClick={handleLogout}>退出登录</button>
       </div>
@@ -52,7 +113,7 @@ const Layout = () => {
 
 function App() {
   return (
-    <Router basename="/user">
+    <Router>
       <Routes>
         <Route path="/sso/callback" element={<SsoCallback />} />
         

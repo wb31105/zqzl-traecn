@@ -10,14 +10,16 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * OAuth2 独立配套服务
+ * 注意：OAuth2登录流程由 Spring Security OAuth2 Authorization Server 处理
+ * 本服务仅提供：注册、忘记密码、验证码等配套功能
+ */
 @Service
 public class AuthService {
 
     @Autowired
     private UserServiceClient userServiceClient;
-
-    @Autowired
-    private TicketService ticketService;
 
     @Autowired
     private CaptchaService captchaService;
@@ -60,6 +62,10 @@ public class AuthService {
         }
     }
 
+    /**
+     * @deprecated OAuth2登录流程由 Spring Security 处理，不推荐使用API登录
+     */
+    @Deprecated
     public LoginResponse login(LoginRequest request) {
         if (shouldShowCaptcha(request.getUsername())) {
             if (request.getCaptcha() == null || request.getCaptchaKey() == null) {
@@ -78,15 +84,6 @@ public class AuthService {
         
         if (userResponse.isSuccess()) {
             loginAttempts.remove(request.getUsername());
-            
-            String ticket = ticketService.generateTicket(userResponse.getUsername());
-            return new LoginResponse(
-                true,
-                "登录成功",
-                ticket,
-                false,
-                userResponse.getUsername()
-            );
         } else {
             incrementLoginAttempts(request.getUsername());
         }
@@ -208,13 +205,5 @@ public class AuthService {
 
     public Map<String, String> getCaptcha() {
         return captchaService.generateCaptcha();
-    }
-
-    public String validateTicket(String ticket) {
-        String username = ticketService.validateTicket(ticket);
-        if (username != null) {
-            ticketService.removeTicket(ticket);
-        }
-        return username;
     }
 }

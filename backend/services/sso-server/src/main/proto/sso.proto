@@ -5,16 +5,72 @@ package com.sso.grpc;
 option java_package = "com.sso.grpc";
 option java_outer_classname = "SsoServiceProto";
 
+/**
+ * SSO OAuth2 gRPC 服务（内部服务间调用）
+ * 
+ * 协议选择说明：
+ * - 内部服务：使用 gRPC 协议（高性能、类型安全）
+ * - 第三方应用：使用 HTTP 协议（标准、兼容性好）
+ */
 service SsoService {
-  rpc ValidateTicket(TicketValidationRequest) returns (TicketValidationResponse) {}
+  rpc ExchangeToken(TokenExchangeRequest) returns (TokenExchangeResponse) {}
+  rpc ValidateToken(TokenValidationRequest) returns (TokenValidationResponse) {}
+  rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse) {}
+  rpc GetClientInfo(ClientInfoRequest) returns (ClientInfoResponse) {}
 }
 
-message TicketValidationRequest {
-  string ticket = 1;
+message TokenExchangeRequest {
+  string code = 1;                    
+  string client_id = 2;              
+  string client_secret = 3;          
+  string redirect_uri = 4;           
+  string grant_type = 5;             
 }
 
-message TicketValidationResponse {
+message TokenExchangeResponse {
+  bool success = 1;
+  string access_token = 2;           
+  string refresh_token = 3;          
+  string token_type = 4;             
+  int32 expires_in = 5;              
+  string scope = 6;
+  string message = 7;
+}
+
+message TokenValidationRequest {
+  string access_token = 1;
+}
+
+message TokenValidationResponse {
   bool valid = 1;
   string username = 2;
-  string message = 3;
+  string client_id = 3;
+  string scope = 4;
+  int64 expires_at = 5;
+  string message = 6;
+}
+
+message RevokeTokenRequest {
+  string token = 1;
+  string client_id = 2;
+  string client_secret = 3;
+}
+
+message RevokeTokenResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ClientInfoRequest {
+  string client_id = 1;
+}
+
+message ClientInfoResponse {
+  bool success = 1;
+  bool exists = 2;
+  string client_name = 3;
+  string redirect_uri = 4;           
+  string scope = 5;
+  bool require_consent = 6;
+  string message = 7;
 }

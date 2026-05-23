@@ -1,81 +1,166 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import './App.css';
-import Login from './components/Login';
-import Register from './components/Register';
-import ForgotPassword from './components/ForgotPassword';
 
-function Dashboard({ user, onLogout }) {
-  return (
-    <div className="dashboard-container">
-      <h1 className="dashboard-title">SSO 登录成功</h1>
-      <p className="dashboard-welcome">
-        你好，<strong>{user.username}</strong>！
-      </p>
-      <p style={{ color: '#666', marginBottom: '30px' }}>
-        票据：{localStorage.getItem('token')}
-      </p>
-      <button className="logout-button" onClick={onLogout}>
-        退出登录
-      </button>
-    </div>
-  );
-}
+const SSO_SERVER_URL = process.env.REACT_APP_SSO_SERVER_URL || 'http://localhost:8080';
+
+const DEMO_CLIENTS = [
+  {
+    id: 'user-web-client',
+    name: '用户管理系统',
+    description: '用户中心管理系统，用于管理用户信息',
+    url: 'http://localhost:3001',
+    icon: '👥'
+  },
+  {
+    id: 'third-party-demo',
+    name: '第三方演示应用',
+    description: '第三方应用集成演示',
+    url: 'http://localhost:3002',
+    icon: '🔗'
+  }
+];
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState(null);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    if (token && savedUser) {
-      setIsLoggedIn(true);
-      setUser(JSON.parse(savedUser));
-    }
+    setClients(DEMO_CLIENTS);
     setLoading(false);
   }, []);
 
-  const handleLoginSuccess = (userData) => {
-    setIsLoggedIn(true);
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+  const handleLogin = () => {
+    window.location.href = `${SSO_SERVER_URL}/login`;
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    window.location.href = `${SSO_SERVER_URL}/logout`;
+  };
+
+  const handleAccessClient = (client) => {
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: client.id,
+      redirect_uri: client.url + '/sso/callback',
+      scope: 'openid profile read write',
+      state: Math.random().toString(36).substring(2, 15)
+    });
+    window.location.href = `${SSO_SERVER_URL}/oauth2/authorize?${params.toString()}`;
   };
 
   if (loading) {
-    return <div style={{ color: 'white', fontSize: '18px', textAlign: 'center', padding: '50px' }}>加载中...</div>;
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>加载中...</p>
+      </div>
+    );
   }
 
   return (
     <div className="App">
-      <BrowserRouter basename="/">
-        <Routes>
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/" element={
-            isLoggedIn ? (
-              <Dashboard user={user} onLogout={handleLogout} />
-            ) : (
-              <Login onLoginSuccess={handleLoginSuccess} />
-            )
-          } />
-          <Route path="*" element={
-            isLoggedIn ? (
-              <Dashboard user={user} onLogout={handleLogout} />
-            ) : (
-              <Login onLoginSuccess={handleLoginSuccess} />
-            )
-          } />
-        </Routes>
-      </BrowserRouter>
+      <header className="sso-header">
+        <div className="header-content">
+          <div className="logo">
+            <span className="logo-icon">🔐</span>
+            <h1>SSO 统一认证中心</h1>
+          </div>
+          <div className="header-actions">
+            <button className="btn-secondary" onClick={handleLogout}>
+              退出登录
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="sso-main">
+        <div className="welcome-section">
+          <h2>欢迎使用 SSO 单点登录服务</h2>
+          <p>安全、便捷的统一身份认证解决方案</p>
+        </div>
+
+        <div className="features-section">
+          <div className="feature-card">
+            <div className="feature-icon">🛡️</div>
+            <h3>安全可靠</h3>
+            <p>基于OAuth2.0授权码模式，保障数据安全</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">🚀</div>
+            <h3>便捷高效</h3>
+            <p>一次登录，访问所有授权应用</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">🔗</div>
+            <h3>开放集成</h3>
+            <p>支持第三方应用快速接入</p>
+          </div>
+        </div>
+
+        <div className="apps-section">
+          <h2>可用应用</h2>
+          <div className="apps-grid">
+            {clients.map((client) => (
+              <div key={client.id} className="app-card">
+                <div className="app-icon">{client.icon}</div>
+                <h3>{client.name}</h3>
+                <p>{client.description}</p>
+                <button 
+                  className="btn-primary"
+                  onClick={() => handleAccessClient(client)}
+                >
+                  访问应用
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="api-section">
+          <h2>OAuth2 端点</h2>
+          <div className="endpoints-list">
+            <div className="endpoint-item">
+              <code className="endpoint-method">GET</code>
+              <div className="endpoint-info">
+                <code className="endpoint-url">/oauth2/authorize</code>
+                <span className="endpoint-desc">授权端点</span>
+              </div>
+            </div>
+            <div className="endpoint-item">
+              <code className="endpoint-method">POST</code>
+              <div className="endpoint-info">
+                <code className="endpoint-url">/oauth2/token</code>
+                <span className="endpoint-desc">令牌端点</span>
+              </div>
+            </div>
+            <div className="endpoint-item">
+              <code className="endpoint-method">GET</code>
+              <div className="endpoint-info">
+                <code className="endpoint-url">/oauth2/jwks</code>
+                <span className="endpoint-desc">公钥端点</span>
+              </div>
+            </div>
+            <div className="endpoint-item">
+              <code className="endpoint-method">GET</code>
+              <div className="endpoint-info">
+                <code className="endpoint-url">/userinfo</code>
+                <span className="endpoint-desc">用户信息端点</span>
+              </div>
+            </div>
+            <div className="endpoint-item">
+              <code className="endpoint-method">GET</code>
+              <div className="endpoint-info">
+                <code className="endpoint-url">/.well-known/openid-configuration</code>
+                <span className="endpoint-desc">发现文档</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer className="sso-footer">
+        <p>© 2024 SSO 统一认证中心 - Powered by OAuth2.0</p>
+      </footer>
     </div>
   );
 }

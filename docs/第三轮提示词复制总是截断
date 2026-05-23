@@ -1,0 +1,59 @@
+1.构建docker镜像失败 81.68 [INFO] Finished at: 2026-05-22T04:20:06Z
+81.68 [INFO] ------------------------------------------------------------------------
+81.68 [ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.8.1:compile (default-compile) on project sso-server: Compilation failure: Compilation failure: 
+81.68 [ERROR] /app/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java:[16,71] cannot access org.springframework.security.oauth2.server.authorization.client.RegisteredClient
+81.68 [ERROR]   bad class file: /root/.m2/repository/org/springframework/security/spring-security-oauth2-authorization-server/1.2.1/spring-security-oauth2-authorization-server-1.2.1.jar(/org/springframework/security/oauth2/server/authorization/client/RegisteredClient.class)
+81.68 [ERROR]     class file has wrong version 61.0, should be 55.0
+81.68 [ERROR]     Please remove or make sure it appears in the correct subdirectory of the classpath.
+81.68 [ERROR] /app/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java:[17,71] cannot access org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository
+81.68 [ERROR]   bad class file: /root/.m2/repository/org/springframework/security/spring-security-oauth2-authorization-server/1.2.1/spring-security-oauth2-authorization-server-1.2.1.jar(/org/springframework/security/oauth2/server/authorization/client/RegisteredClientRepository.class)
+81.68 [ERROR]     class file has wrong version 61.0, should be 55.0
+81.68 [ERROR]     Please remove or make sure it appears in the correct subdirectory of the classpath.
+81.68 [ERROR] /app/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java:[18,100] cannot access org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration
+81.68 [ERROR]   bad class file: /root/.m2/repository/org/springframework/security/spring-security-oauth2-authorization-server/1.2.1/spring-security-oauth2-authorization-server-1.2.1.jar(/org/springframework/security/oauth2/server/authorization/config/annotation/web/configuration/OAuth2AuthorizationServerConfiguration.class)
+81.68 [ERROR]     class file has wrong version 61.0, should be 55.0
+81.68 [ERROR]     Please remove or make sure it appears in the correct subdirectory of the classpath.
+81.68 [ERROR] /app/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java:[19,73] cannot access org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings
+81.68 [ERROR]   bad class file: /root/.m2/repository/org/springframework/security/spring-security-oauth2-authorization-server/1.2.1/spring-security-oauth2-authorization-server-1.2.1.jar(/org/springframework/security/oauth2/server/authorization/settings/AuthorizationServerSettings.class)
+81.68 [ERROR]     class file has wrong version 61.0, should be 55.0
+81.68 [ERROR]     Please remove or make sure it appears in the correct subdirectory of the classpath.
+81.68 [ERROR] /app/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java:[20,73] cannot access org.springframework.security.oauth2.server.authorization.settings.ClientSettings
+81.68 [ERROR]   bad class file: /root/.m2/repository/org/springframework/security/spring-security-oauth2-authorization-server/1.2.1/spring-security-oauth2-authorization-server-1.2.1.jar(/org/springframework/security/oauth2/server/authorization/settings/ClientSettings.class)
+81.68 [ERROR]     class file has wrong version 61.0, should be 55.0
+81.68 [ERROR]     Please remove or make sure it appears in the correct subdirectory of the classpath.
+81.68 [ERROR] /app/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java:[21,73] cannot access org.springframework.security.oauth2.server.authorization.settings.TokenSettings
+81.68 [ERROR]   bad class file: /root/.m2/repository/org/springframework/security/spring-security-oauth2-authorization-server/1.2.1/spring-security-oauth2-authorization-server-1.2.1.jar(/org/springframework/security/oauth2/server/authorization/settings/TokenSettings.class)
+81.68 [ERROR]     class file has wrong version 61.0, should be 55.0
+81.68 [ERROR]     Please remove or make sure it appears in the correct subdirectory of the classpath.
+81.68 [ERROR] /app/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java:[41,12] cannot find symbol
+81.68 [ERROR]   symbol:   class RegisteredClientRepository
+81.68 [ERROR]   location: class com.sso.config.AuthorizationServerConfig
+81.68 [ERROR] /app/services/sso-server/src/main/java/com/sso/config/AuthorizationServerConfig.java:[70,12] cannot find symbol
+81.68 [ERROR]   symbol:   class AuthorizationServerSettings
+81.68 [ERROR]   location: class com.sso.config.AuthorizationServerConfig
+81.68 [ERROR] -> [Help 1]
+81.68 [ERROR] 
+81.68 [ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+81.68 [ERROR] Re-run Maven using the -X switch to enable full debug logging.
+81.68 [ERROR] 
+81.68 [ERROR] For more information about the errors and possible solutions, please read the following articles:
+81.68 [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+------
+Dockerfile:14
+--------------------
+  12 |     
+  13 |     RUN mvn -f ./frameworks/zqzl-framework/pom.xml clean install -DskipTests -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
+  14 | >>> RUN mvn -f ./services/sso-server/pom.xml clean package -DskipTests -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
+  15 |     
+  16 |     FROM eclipse-temurin:11-jre
+--------------------
+ERROR: failed to solve: process "/bin/sh -c mvn -f ./services/sso-server/pom.xml clean package -DskipTests -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true" did not complete successfully: exit code: 1
+
+View build details: docker-deskto
+
+
+2.从业务流程图上看 sso后端服务的 LoginController文件应该已经没什么用了,要么删除要么应该正确使用,把关于登录的代码移动到这个文件,要么容易产生歧义,检查一下所有的代码存在如此的问题的都修复一下.3.“→ user-web 直接调用 sso-server /v1/auth/validate-ticket?ticket=ST-xxx
+
+→ sso-server 从 Map 查找并删除 ticket，返回 username
+
+→ user-web 将 ticket 存入 localStorage('sso_token')“这流程不对不符合oauth的流程 应该前端拿到code后端 去sso换token 修复一下符合标准oauth2 授权流程 请修复以上问题并同步说明.

@@ -7,9 +7,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * OAuth2 认证配套接口
+ * 
+ * 注意：OAuth2 标准登录流程为：
+ * 1. 前端跳转 /oauth2/authorize 授权端点
+ * 2. Spring Security 显示 /login 页面（Thymeleaf模板）
+ * 3. 用户提交表单后，Spring Security 创建 Session
+ * 4. 生成 code 回调客户端
+ * 5. 客户端后端调用 /oauth2/token 换 access_token
+ * 
+ * 本 Controller 仅提供注册、忘记密码、验证码等配套功能
+ */
 @RestController
 @RequestMapping("/v1/auth")
 public class AuthController {
@@ -17,6 +28,10 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    /**
+     * @deprecated 推荐使用标准 OAuth2 授权码流程：跳转 /oauth2/authorize
+     */
+    @Deprecated
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
@@ -57,20 +72,5 @@ public class AuthController {
     public ResponseEntity<Boolean> checkShouldShowCaptcha(@RequestParam String username) {
         boolean shouldShow = authService.shouldShowCaptcha(username);
         return ResponseEntity.ok(shouldShow);
-    }
-
-    @GetMapping("/validate-ticket")
-    public ResponseEntity<Map<String, Object>> validateTicket(@RequestParam String ticket) {
-        String username = authService.validateTicket(ticket);
-        Map<String, Object> result = new HashMap<>();
-        if (username != null) {
-            result.put("success", true);
-            result.put("username", username);
-            result.put("message", "验证成功");
-        } else {
-            result.put("success", false);
-            result.put("message", "无效的票据");
-        }
-        return ResponseEntity.ok(result);
     }
 }

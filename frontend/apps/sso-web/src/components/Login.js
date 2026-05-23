@@ -1,12 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 
-const API_BASE_URL = '/v1/auth';
+const SSO_SERVER_URL = process.env.REACT_APP_SSO_SERVER_URL || 'http://localhost:8080';
+const API_BASE_URL = `${SSO_SERVER_URL}/v1/auth`;
 
+/**
+ * SSO OAuth2 登录页面（前后端分离）
+ * 
+ * 流程：
+ * 1. 用户被 Spring Security 302 重定向到 /login?continue=/oauth2/authorize?...
+ * 2. 前端显示登录表单
+ * 3. 提交表单到 /v1/auth/login（Spring Security 处理）
+ * 4. 登录成功创建 SSO_SESSION Cookie → 重定向回 /oauth2/authorize
+ * 5. Spring Security 生成 code → 回调客户端
+ */
 const Login = ({ onLoginSuccess }) => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const formRef = useRef(null);
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -16,19 +27,27 @@ const Login = ({ onLoginSuccess }) => {
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [redirect, setRedirect] = useState('');
+  const [continueUrl, setContinueUrl] = useState('');
+  const [isOAuth2Flow, setIsOAuth2Flow] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const redirectUrl = params.get('redirect');
-    if (redirectUrl) {
-      setRedirect(redirectUrl);
+    const continueParam = params.get('continue');
+    const logoutParam = params.get('logout');
+    
+    if (continueParam) {
+      setContinueUrl(continueParam);
+      setIsOAuth2Flow(true);
+    }
+    
+    if (logoutParam) {
+      setError('您已成功退出登录');
     }
   }, [location.search]);
 
   const fetchCaptcha = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/captcha`);
+      const response = await axios.get(`${API_BASE_URL}/captcha`, { withCredentials: true });
       setCaptchaKey(response.data.captchaKey);
       setCaptchaImage(response.data.captchaImage);
     } catch (err) {
@@ -40,7 +59,8 @@ const Login = ({ onLoginSuccess }) => {
     if (!user) return;
     try {
       const response = await axios.get(`${API_BASE_URL}/check-captcha`, {
-        params: { username: user }
+        params: { username: user },
+        withCredentials: true
       });
       if (response.data && !showCaptcha) {
         setShowCaptcha(true);
@@ -66,40 +86,43 @@ const Login = ({ onLoginSuccess }) => {
     setLoading(true);
 
     try {
-      const loginData = {
-        username,
-        password,
-        captcha: showCaptcha ? captcha : undefined,
-        captchaKey: showCaptcha ? captchaKey : undefined
-      };
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('password', password);
+      if (showCaptcha) {
+        formData.append('captcha', captcha);
+        formData.append('captchaKey', captchaKey);
+      }
 
-      const response = await axios.post(`${API_BASE_URL}/login`, loginData);
-      
-      if (response.data.success) {
-        const ticket = response.data.token;
-        const usernameRes = response.data.username;
-        
-        localStorage.setItem('token', ticket);
-        
-        if (redirect) {
-          const url = new URL(redirect);
-          const originalPath = url.pathname || '/';
-          const callbackUrl = `${url.origin}/sso/callback?originalPath=${encodeURIComponent(originalPath)}`;
-          window.location.href = `${callbackUrl}&ticket=${ticket}&username=${encodeURIComponent(usernameRes)}`;
-        } else {
-          onLoginSuccess({ username: usernameRes });
-        }
+      const response = await axios.post(`${SSO_SERVER_URL}/login`, formData, {
+        withCredentials: true,
+        maxRedirects: 0,
+        validateStatus: (status) => status >= 200 && status < 400
+      });
+
+      if (isOAuth2Flow && continueUrl) {
+        window.location.href = `${SSO_SERVER_URL}${continueUrl}`;
+      } else if (response.data?.success) {
+        onLoginSuccess({ username });
       } else {
-        setError(response.data.message);
-        if (response.data.requireCaptcha && !showCaptcha) {
-          setShowCaptcha(true);
-          fetchCaptcha();
-        } else if (showCaptcha) {
-          fetchCaptcha();
-        }
+        setError('登录成功');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 500);
       }
     } catch (err) {
-      setError('登录失败，请稍后重试');
+      if (err.response?.status === 302 || err.response?.status === 200) {
+        if (isOAuth2Flow && continueUrl) {
+          window.location.href = `${SSO_SERVER_URL}${continueUrl}`;
+        } else {
+          window.location.href = '/';
+        }
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('登录失败，请稍后重试');
+      }
+      
       if (showCaptcha) {
         fetchCaptcha();
       }

@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8081}
 
 spring:
   application:
@@ -22,6 +22,12 @@ spring:
     console:
       enabled: true
       path: /h2-console
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080
+          jwk-set-uri: http://localhost:8080/oauth2/jwks
 
 grpc:
   server:
@@ -36,11 +42,14 @@ grpc:
 sso:
   service:
     url: ${SSO_SERVICE_URL:http://sso-server:8080}
+  oauth2:
+    client-id: user-web-client
+    client-secret: user-web-secret-123
+    token-uri: http://localhost:8080/oauth2/token
+    authorization-uri: http://localhost:8080/oauth2/authorize
+    redirect-uri: http://localhost:3001/sso/callback
 
 user:
-  jwt:
-    secret: user-secret-key-2024-user-secret-key-2024-user-secret-key
-    expiration: 86400000
   login:
     max-attempts: 3
     captcha-enabled-after: 1

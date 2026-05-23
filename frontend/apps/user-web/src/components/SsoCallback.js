@@ -2,9 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 
-const SSO_WEB_URL = '/';
-const API_BASE_URL = '';
-
 const SsoCallback = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -12,59 +9,65 @@ const SsoCallback = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const ticket = params.get('ticket');
-    const username = params.get('username');
-    const originalPath = params.get('originalPath') || '/users';
+    const code = params.get('code');
+    const state = params.get('state');
 
-    console.log('SsoCallback - ticket:', ticket, 'username:', username, 'originalPath:', originalPath);
-
-    if (!ticket) {
-      setError('缺少票据参数');
+    if (!code) {
+      setError('缺少授权码参数');
       setLoading(false);
       return;
     }
 
-    validateTicket(ticket, username, originalPath);
+    exchangeToken(code, state);
   }, [location.search]);
 
-  const validateTicket = async (ticket, username, originalPath) => {
+  const exchangeToken = async (code, state) => {
     try {
-      console.log('开始验证票据:', ticket);
-      const response = await axios.get(`${API_BASE_URL}/v1/auth/validate-ticket`, {
-        params: { ticket }
+      const response = await axios.post('/v1/oauth2/token', {
+        code: code
       });
 
-      console.log('票据验证响应:', response.data);
-
       if (response.data.success) {
-        localStorage.setItem('sso_token', ticket);
-        localStorage.setItem('username', username || response.data.username);
-        console.log('验证成功，跳转到:', originalPath);
+        const tokenData = response.data.data;
+        localStorage.setItem('access_token', tokenData.access_token);
+        localStorage.setItem('refresh_token', tokenData.refresh_token);
+        localStorage.setItem('token_type', tokenData.token_type);
+        localStorage.setItem('expires_in', tokenData.expires_in);
+        localStorage.setItem('login_time', Date.now().toString());
+
+        const originalPath = localStorage.getItem('originalPath') || '/users';
+        localStorage.removeItem('originalPath');
+
         window.location.href = originalPath;
       } else {
-        setError(response.data.message || '票据验证失败');
-        console.log('验证失败:', response.data.message);
+        setError(response.data.message || '令牌交换失败');
         setTimeout(() => {
-          window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin + window.location.pathname)}`;
+          redirectToLogin();
         }, 2000);
       }
     } catch (err) {
-      console.error('票据验证失败', err);
-      setError('票据验证失败，请重新登录');
+      console.error('令牌交换失败', err);
+      setError('登录失败，请重新登录');
       setTimeout(() => {
-        window.location.href = `${SSO_WEB_URL}?redirect=${encodeURIComponent(window.location.origin + window.location.pathname)}`;
+        redirectToLogin();
       }, 2000);
     } finally {
       setLoading(false);
     }
   };
 
+  const redirectToLogin = () => {
+    const originalPath = window.location.pathname;
+    localStorage.setItem('originalPath', originalPath);
+    window.location.href = '/';
+  };
+
   if (loading) {
     return (
       <div className="auth-container">
         <div className="auth-card">
-          <h2>验证中...</h2>
-          <p>正在验证SSO票据，请稍候</p>
+          <h2>登录中...</h2>
+          <p>正在完成OAuth2认证，请稍候</p>
         </div>
       </div>
     );
@@ -74,7 +77,7 @@ const SsoCallback = () => {
     return (
       <div className="auth-container">
         <div className="auth-card">
-          <h2>验证失败</h2>
+          <h2>登录失败</h2>
           <div className="error-message">{error}</div>
           <p>2秒后跳转到登录页面...</p>
         </div>
