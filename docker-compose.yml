@@ -5,6 +5,7 @@ services:
     ports:
       - "80:9080"
       - "443:9443"
+      - "9090:9090"
     depends_on:
       sso-web:
         condition: service_started
@@ -21,14 +22,18 @@ services:
   user-server:
     image: zqzl/user-server:latest
     container_name: zqzl-user-server
-    ports:
-      - "8081:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8080
-      - GRPC_SERVER_PORT=9091
+      - GRPC_SERVER_PORT=9090
       - SSO_GRPC_HOST=sso-server
       - SSO_GRPC_PORT=9090
+      - SSO_ISSUER_URI=http://api.bw.com
+      - SSO_JWK_SET_URI=http://sso-server:8080/oauth2/jwks
+      - SSO_TOKEN_URI=http://api.bw.com/oauth2/token
+      - SSO_AUTHORIZATION_URI=http://api.bw.com/oauth2/authorize
+      - SSO_REDIRECT_URI=http://admin.bw.com/sso/callback
+      - SSO_OAUTH2_SCOPE=openid profile read write
     networks:
       - zqzl-network
     restart: unless-stopped
@@ -36,8 +41,6 @@ services:
   sso-server:
     image: zqzl/sso-server:latest
     container_name: zqzl-sso-server
-    ports:
-      - "8080:8080"
     depends_on:
       user-server:
         condition: service_started
@@ -46,7 +49,12 @@ services:
       - SERVER_PORT=8080
       - GRPC_SERVER_PORT=9090
       - USER_GRPC_HOST=user-server
-      - USER_GRPC_PORT=9091
+      - USER_GRPC_PORT=9090
+      - SSO_ISSUER_URI=http://api.bw.com
+      - SSO_JWK_SET_URI=http://sso-server:8080/oauth2/jwks
+      - SSO_WEB_LOGIN_URL=http://sso.bw.com/login
+      - SSO_WEB_LOGOUT_URL=http://sso.bw.com/login?logout
+      - SSO_CLIENT_USER_WEB_REDIRECT_URI=http://admin.bw.com/sso/callback
     networks:
       - zqzl-network
     restart: unless-stopped
@@ -54,8 +62,6 @@ services:
   sso-web:
     image: zqzl/sso-web:latest
     container_name: zqzl-sso-web
-    ports:
-      - "3000:80"
     networks:
       - zqzl-network
     depends_on:
@@ -65,8 +71,6 @@ services:
   user-web:
     image: zqzl/user-web:latest
     container_name: zqzl-user-web
-    ports:
-      - "3031:80"
     networks:
       - zqzl-network
     depends_on:

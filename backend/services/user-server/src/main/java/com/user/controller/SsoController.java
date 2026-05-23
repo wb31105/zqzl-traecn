@@ -10,7 +10,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/sso")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(originPatterns = "*")
 public class SsoController {
 
     @Autowired

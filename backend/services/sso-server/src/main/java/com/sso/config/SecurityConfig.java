@@ -34,10 +34,10 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${sso.web.login-url:http://localhost:3000/login}")
+    @Value("${sso.web.login-url}")
     private String ssoLoginUrl;
 
-    @Value("${sso.web.logout-success-url:http://localhost:3000/login?logout}")
+    @Value("${sso.web.logout-success-url}")
     private String logoutSuccessUrl;
 
     public SecurityConfig(CustomUserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {

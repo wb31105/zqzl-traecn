@@ -1,0 +1,33 @@
+server:
+  port: 8082
+
+spring:
+  profiles:
+    active: local
+  jpa:
+    show-sql: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081
+          jwk-set-uri: http://localhost:8081/oauth2/jwks
+
+grpc:
+  server:
+    port: 9092
+  client:
+    sso-server:
+      address: static://localhost:9091
+
+sso:
+  oauth2:
+    token-uri: http://localhost:8081/oauth2/token
+    authorization-uri: http://localhost:8081/oauth2/authorize
+    redirect-uri: http://localhost:3002/sso/callback
+    scope: openid profile read write
+
+logging:
+  level:
+    com.user: DEBUG
+    org.hibernate.SQL: DEBUG

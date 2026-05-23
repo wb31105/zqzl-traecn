@@ -30,10 +30,10 @@ axios.interceptors.response.use(
 );
 
 const OAUTH2_CONFIG = {
-  authorizationUri: process.env.REACT_APP_OAUTH2_AUTH_URI || 'http://localhost:8080/oauth2/authorize',
-  clientId: process.env.REACT_APP_OAUTH2_CLIENT_ID || 'user-web-client',
-  redirectUri: process.env.REACT_APP_OAUTH2_REDIRECT_URI || 'http://localhost:3001/sso/callback',
-  scope: process.env.REACT_APP_OAUTH2_SCOPE || 'openid profile read write',
+  authorizationUri: process.env.REACT_APP_OAUTH2_AUTH_URI,
+  clientId: process.env.REACT_APP_OAUTH2_CLIENT_ID,
+  redirectUri: process.env.REACT_APP_OAUTH2_REDIRECT_URI,
+  scope: process.env.REACT_APP_OAUTH2_SCOPE,
   responseType: 'code'
 };
 
@@ -85,7 +85,7 @@ const ProtectedRoute = () => {
 const Navbar = () => {
   const handleLogout = () => {
     localStorage.clear();
-    const logoutUri = (process.env.REACT_APP_OAUTH2_AUTH_URI || 'http://localhost:8080/oauth2/authorize').replace('/oauth2/authorize', '');
+    const logoutUri = (process.env.REACT_APP_OAUTH2_AUTH_URI || '').replace('/oauth2/authorize', '');
     window.location.href = `${logoutUri}/logout`;
   };
 

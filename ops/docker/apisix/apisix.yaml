@@ -1,7 +1,8 @@
 routes:
-  - id: sso-server-route
+  - id: api-sso-server-route
     uri: /v1/auth/*
-    priority: 10
+    priority: 100
+    host: api.bw.com
     plugins:
       proxy-rewrite:
         regex_uri: ["^/v1/auth/(.*)", "/sso/v1/auth/$1"]
@@ -10,45 +11,40 @@ routes:
       nodes:
         "sso-server:8080": 1
 
-  - id: user-server-route
+  - id: api-oauth2-route
+    uri: /oauth2/*
+    priority: 99
+    host: api.bw.com
+    upstream:
+      type: roundrobin
+      nodes:
+        "sso-server:8080": 1
+
+  - id: api-user-server-route
     uri: /v1/users/*
-    priority: 9
-    plugins:
-      proxy-rewrite:
-        regex_uri: ["^/v1/users/(.*)", "/v1/users/$1"]
+    priority: 98
+    host: api.bw.com
     upstream:
       type: roundrobin
       nodes:
         "user-server:8080": 1
 
-  - id: user-web-root-route
-    uri: /user
-    priority: 8
-    plugins:
-      proxy-rewrite:
-        regex_uri: ["^/user$", "/"]
-    upstream:
-      type: roundrobin
-      nodes:
-        "user-web:80": 1
-
-  - id: user-web-all-route
-    uri: /user/*
-    priority: 7
-    plugins:
-      proxy-rewrite:
-        regex_uri: ["^/user/(.*)", "/$1"]
-    upstream:
-      type: roundrobin
-      nodes:
-        "user-web:80": 1
-
-  - id: sso-web-catchall-route
+  - id: sso-web-route
     uri: /*
-    priority: 1
+    priority: 50
+    host: sso.bw.com
     upstream:
       type: roundrobin
       nodes:
         "sso-web:80": 1
+
+  - id: admin-web-route
+    uri: /*
+    priority: 49
+    host: admin.bw.com
+    upstream:
+      type: roundrobin
+      nodes:
+        "user-web:80": 1
 
 #END

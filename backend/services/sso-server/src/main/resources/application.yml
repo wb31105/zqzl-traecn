@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT}
   servlet:
     session:
       timeout: 30m
@@ -13,7 +13,7 @@ spring:
   application:
     name: sso-server
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    active: ${SPRING_PROFILES_ACTIVE}
   datasource:
     url: jdbc:h2:mem:sso_db;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -32,26 +32,30 @@ spring:
       path: /h2-console
   thymeleaf:
     cache: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SSO_ISSUER_URI}
+          jwk-set-uri: ${SSO_JWK_SET_URI}
 
 grpc:
   server:
-    port: ${GRPC_SERVER_PORT:9090}
+    port: ${GRPC_SERVER_PORT}
   client:
     user-server:
-      address: static://${USER_GRPC_HOST:user-server}:${USER_GRPC_PORT:9091}
+      address: static://${USER_GRPC_HOST}:${USER_GRPC_PORT}
       enableKeepAlive: true
       keepAliveWithoutCalls: true
       negotiationType: plaintext
 
-user:
-  service:
-    url: ${USER_SERVICE_URL:http://user-server:8081}
-
 sso:
   oauth2:
-    issuer-uri: ${SSO_ISSUER_URI:http://localhost:8080}
+    issuer-uri: ${SSO_ISSUER_URI}
   web:
-    login-url: ${SSO_WEB_LOGIN_URL:http://localhost:3000/login}
-    logout-success-url: ${SSO_WEB_LOGOUT_URL:http://localhost:3000/login?logout}
+    login-url: ${SSO_WEB_LOGIN_URL}
+    logout-success-url: ${SSO_WEB_LOGOUT_URL}
+  client:
+    user-web-redirect-uri: ${SSO_CLIENT_USER_WEB_REDIRECT_URI}
   ticket:
     expiration: 86400000

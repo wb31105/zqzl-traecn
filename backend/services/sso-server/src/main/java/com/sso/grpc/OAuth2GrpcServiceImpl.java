@@ -30,7 +30,7 @@ public class OAuth2GrpcServiceImpl extends SsoServiceGrpc.SsoServiceImplBase {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Value("${sso.oauth2.issuer-uri:http://localhost:8080}")
+    @Value("${sso.oauth2.issuer-uri}")
     private String issuerUri;
 
     private final RestTemplate restTemplate = new RestTemplate();

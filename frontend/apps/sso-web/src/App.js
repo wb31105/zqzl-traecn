@@ -1,22 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 
-const SSO_SERVER_URL = process.env.REACT_APP_SSO_SERVER_URL || 'http://localhost:8080';
+const SSO_SERVER_URL = process.env.REACT_APP_SSO_SERVER_URL;
 
 const DEMO_CLIENTS = [
   {
     id: 'user-web-client',
     name: '用户管理系统',
     description: '用户中心管理系统，用于管理用户信息',
-    url: 'http://localhost:3001',
+    url: process.env.REACT_APP_USER_WEB_URL,
     icon: '👥'
-  },
-  {
-    id: 'third-party-demo',
-    name: '第三方演示应用',
-    description: '第三方应用集成演示',
-    url: 'http://localhost:3002',
-    icon: '🔗'
   }
 ];
 

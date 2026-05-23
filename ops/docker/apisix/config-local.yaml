@@ -1,8 +1,5 @@
 apisix:
-  node_listen: 9080
+  node_listen: 8080
   enable_ipv6: false
   enable_admin: false
   config_center: yaml
-  stream_proxy:
-    tcp:
-      - 9090

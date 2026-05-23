@@ -29,7 +29,7 @@ public class OAuth2Controller {
     @Value("${sso.oauth2.redirect-uri}")
     private String redirectUri;
 
-    @Value("${sso.oauth2.scope:openid profile read write}")
+    @Value("${sso.oauth2.scope}")
     private String scope;
 
     private final RestTemplate restTemplate = new RestTemplate();

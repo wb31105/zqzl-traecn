@@ -1,0 +1,31 @@
+server:
+  port: 8081
+
+spring:
+  profiles:
+    active: local
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8081/oauth2/jwks
+
+grpc:
+  server:
+    port: 9091
+  client:
+    user-server:
+      address: static://localhost:9092
+
+sso:
+  oauth2:
+    issuer-uri: http://localhost:8081
+  web:
+    login-url: http://localhost:3001/login
+    logout-success-url: http://localhost:3001/login?logout
+  client:
+    user-web-redirect-uri: http://localhost:3002/sso/callback
+
+logging:
+  level:
+    com.sso: DEBUG

@@ -14,7 +14,7 @@ import java.util.Map;
 @RequestMapping
 public class UserInfoController {
 
-    @Value("${sso.oauth2.issuer-uri:http://localhost:8080}")
+    @Value("${sso.oauth2.issuer-uri}")
     private String issuerUri;
 
     @GetMapping("/userinfo")

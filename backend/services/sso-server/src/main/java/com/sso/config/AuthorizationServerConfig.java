@@ -27,7 +27,7 @@ import java.time.Duration;
 @EnableWebSecurity
 public class AuthorizationServerConfig {
 
-    @Value("${sso.oauth2.issuer-uri:http://localhost:8080}")
+    @Value("${sso.oauth2.issuer-uri}")
     private String issuerUri;
 
     @Bean
