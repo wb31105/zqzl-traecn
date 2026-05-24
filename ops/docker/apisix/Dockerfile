@@ -1,7 +1,10 @@
 FROM apache/apisix:2.15.0-alpine
 
-COPY config.yaml /usr/local/apisix/conf/config.yaml
-COPY apisix.yaml /usr/local/apisix/conf/apisix.yaml
+ARG APISIX_CONFIG=apisix.yaml
+ARG APISIX_CONFIG_FILE=config.yaml
+
+COPY ${APISIX_CONFIG_FILE} /usr/local/apisix/conf/config.yaml
+COPY ${APISIX_CONFIG} /usr/local/apisix/conf/apisix.yaml
 
 EXPOSE 9080 9443 9090
 

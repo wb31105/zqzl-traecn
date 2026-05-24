@@ -11,7 +11,56 @@
 | 本地开发环境 | `application-local.yml` (后端) / `.env.local` (前端) | 本地开发使用 |
 | 生产/容器环境 | `application.yml` (后端) / `.env` (前端) | 默认配置，通过环境变量覆盖 |
 
-### 1.2 本地环境端口规划
+### 1.2 运行时版本统一规范
+
+#### 后端 - JDK 版本统一
+
+| 环境 | JDK 版本 | 说明 |
+|------|---------|------|
+| 本地开发 | Temurin-17.0.15+6 | 本机已安装 |
+| Docker 构建 | maven:3.9.6-eclipse-temurin-17 | 构建镜像 |
+| Docker 运行 | eclipse-temurin:17-jre | 运行镜像 |
+
+**依赖版本（JDK 17 最兼容）**:
+- Spring Boot: 2.7.18 (LTS，官方支持 JDK 17)
+- gRPC: 1.62.2
+- Protobuf: 3.25.3
+- Lombok: 1.18.32
+- H2: 2.2.224
+- JJWT: 0.11.5
+
+#### 前端 - Node 版本统一
+
+| 环境 | Node 版本 | 说明 |
+|------|---------|------|
+| 本地开发 | v22.16.0 | 本机已安装 |
+| Docker 构建 | node:22-alpine | 构建镜像 |
+
+#### 网关 - APISIX 版本统一
+
+| 环境 | APISIX 版本 | 配置中心 | 是否需要 etcd |
+|------|------------|---------|-------------|
+| 本地开发 | 2.15.0 | yaml (standalone) | ❌ 不需要 |
+| Docker 环境 | 2.15.0 | yaml (standalone) | ❌ 不需要 |
+
+> **重要说明**: 本项目使用 APISIX 的 standalone 模式（`config_center: yaml`），所有路由配置通过 `apisix.yaml` 文件加载，**完全不需要 etcd**。
+
+### 1.3 脚本目录结构规范
+
+```
+ops/scripts/
+├── docker/              # Docker 镜像构建脚本
+│   ├── build-all.sh     # 构建所有镜像（含 APISIX）
+│   ├── build-apisix.sh  # 构建 APISIX 网关镜像
+│   ├── build-backend.sh # 构建后端服务镜像
+│   └── build-frontend.sh # 构建前端应用镜像
+└── local/               # 本地开发脚本
+    ├── build.sh         # 本地一键编译
+    ├── start.sh         # 本地一键启动/停止
+    └── README.md        # 本地脚本使用说明
+```
+
+### 1.4 本地环境端口规划
 
 **本地环境域名统一使用 `localhost`**
 
@@ -23,7 +72,7 @@
 | sso-web | 3001 | - | - | 登录门户前端 |
 | user-web | 3002 | - | - | 管理平台前端 |
 
-### 1.3 Docker 环境域名与端口规划
+### 1.5 Docker 环境域名与端口规划
 
 **行业标准端口约定：**
 - 对外网关：HTTP 80, HTTPS 443（标准端口）
@@ -101,16 +150,57 @@ cd zqzl-traecn
 find . -name "*.sh" -type f -exec chmod +x {} \;
 ```
 
-### 3.2 构建框架层（首次必须执行）
+### 3.2 一键编译（推荐）
 
 ```bash
-cd backend/frameworks/zqzl-framework
-mvn clean install -DskipTests
+# 编译框架层、后端服务、前端应用
+bash ops/scripts/local/build.sh
 ```
 
-### 3.3 启动后端服务
+编译内容：
+- 框架层: `zqzl-framework` (mvn install)
+- 后端服务: `user-server`, `sso-server` (mvn package)
+- 前端应用: `sso-web`, `user-web` (npm run build:local)
 
-**方式一：Maven 启动（推荐）**
+### 3.3 一键启动（推荐）
+
+```bash
+# 启动所有服务
+bash ops/scripts/local/start.sh
+
+# 查看服务状态
+bash ops/scripts/local/start.sh status
+
+# 停止所有服务
+bash ops/scripts/local/start.sh stop
+
+# 重启所有服务
+bash ops/scripts/local/start.sh restart
+```
+
+**APISIX 启动方式说明**:
+- 默认使用 Docker 方式（推荐，保证环境一致）
+- 启动时通过 volume 挂载本地配置文件，修改配置无需重建镜像
+- 版本与 Docker 构建完全一致 (APISIX 2.15.0, standalone 模式，无需 etcd)
+
+**为什么用 Docker 启动 APISIX 而非本地安装？**
+
+| 对比项 | Docker 启动（推荐） | 本地安装 |
+|--------|-------------------|--------|
+| 环境一致性 | ✅ 与生产 Docker 环境 100% 一致 | ❌ 可能因系统环境不同有差异 |
+| 依赖安装 | ✅ 无需安装 OpenResty 等依赖 | ❌ 需手动安装 OpenResty、APISIX 及依赖 |
+| 配置管理 | ✅ 挂载本地配置文件，修改即生效 | ❌ 配置文件路径不同，需维护两份 |
+| 版本控制 | ✅ 镜像版本固定，可回滚 | ❌ 本地版本管理困难 |
+| 启动速度 | ⚡ 几秒启动 | ⚡ 安装耗时，启动快 |
+| 资源占用 | 📦 约 100MB 内存 | 📦 类似 |
+
+**结论**：推荐使用 Docker 方式启动 APISIX，能最大程度保证**本地开发 ≈ 生产环境**的一致性。如果确实需要本地安装，请参考 `ops/scripts/local/README.md` 中的说明。
+
+### 3.4 手动启动（可选）
+
+#### 启动后端服务
+
+**方式一：Maven 启动（开发调试）**
 
 ```bash
 # 启动 user-server (端口 8082, gRPC 9092)
@@ -136,7 +226,7 @@ mvn clean package -DskipTests
 java -jar target/sso-server-1.0.0.jar --spring.profiles.active=local
 ```
 
-### 3.4 启动前端应用
+#### 启动前端应用
 
 ```bash
 # 启动 sso-web (端口 3001)
@@ -154,8 +244,9 @@ npm start
 
 | 服务 | 地址 | 说明 |
 |------|------|------|
-| 登录门户 | http://localhost:3001 | SSO 认证前端 |
-| 管理平台 | http://localhost:3002 | 用户管理后台 |
+| APISIX 网关统一入口 | http://localhost:8080 | 推荐，通过网关访问 |
+| 登录门户（直连） | http://localhost:3001 | SSO 认证前端 |
+| 管理平台（直连） | http://localhost:3002 | 用户管理后台 |
 | SSO API | http://localhost:8081/sso/v1/auth | 认证服务 API |
 | User API | http://localhost:8082/v1/users | 用户服务 API |
 
@@ -179,11 +270,23 @@ npm start
 
 ### 4.2 构建所有服务镜像
 
-```bash
-# 方式一：使用构建脚本
-bash ops/scripts/build-all.sh
+Docker 构建脚本统一放在 `ops/scripts/docker/` 目录下，层级清晰。
 
-# 方式二：分别构建
+```bash
+# 方式一：一键构建所有镜像（含 APISIX）
+bash ops/scripts/docker/build-all.sh
+
+# 方式二：分类构建
+# 构建 APISIX 网关
+bash ops/scripts/docker/build-apisix.sh
+
+# 构建后端服务
+bash ops/scripts/docker/build-backend.sh
+
+# 构建前端应用
+bash ops/scripts/docker/build-frontend.sh
+
+# 方式三：分别构建单个服务
 # 构建后端服务
 bash backend/services/sso-server/deploy/build.sh
 bash backend/services/user-server/deploy/build.sh
@@ -191,10 +294,18 @@ bash backend/services/user-server/deploy/build.sh
 # 构建前端应用
 bash frontend/apps/sso-web/deploy/build.sh
 bash frontend/apps/user-web/deploy/build.sh
-
-# 构建 APISIX 网关
-bash ops/scripts/build-apisix.sh
 ```
+
+**脚本目录结构说明**：
+- `build-all.sh`: 总入口，按顺序调用其他构建脚本
+- `build-apisix.sh`: 只构建 APISIX 网关镜像（独立模块）
+- `build-backend.sh`: 只构建后端服务镜像
+- `build-frontend.sh`: 只构建前端应用镜像
+
+> **设计原因**：
+> 1. `build-all.sh` 与 `build-apisix.sh` **不是同级关系**，前者是聚合脚本，后者是原子脚本
+> 2. 拆分后可以按需构建，比如只改了前端就只运行 `build-frontend.sh`
+> 3. 分类后更清晰，符合"单一职责原则"
 
 ### 4.3 启动所有服务
 
@@ -447,8 +558,69 @@ docker compose up -d --force-recreate sso-server
 
 | 版本 | 日期 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| v6.0 | 2026-05-24 | 环境统一升级：JDK 17 + Node 22，脚本目录重构，依赖版本优化 | 系统 |
 | v5.0 | 2026-05-23 | 配置规范统一：local 环境命名、端口规范、域名规范 | 系统 |
 | v4.0 | 2026-05-21 | 架构重构：APISIX 网关 + gRPC 服务间调用 | 系统 |
 | v3.0 | 2026-05-19 | 域名架构升级，三域名分离 | 系统 |
 | v2.0 | 2026-05-19 | Docker 容器化部署架构设计 | 系统 |
 | v1.0 | 2026-05-19 | 初始版本 | 系统 |
+
+---
+
+## 十、v6.0 版本更新说明
+
+### 10.1 运行时环境统一
+
+**后端 JDK 升级**：
+- 本地开发：Temurin-17.0.15+6
+- Docker 构建：maven:3.9.6-eclipse-temurin-17
+- Docker 运行：eclipse-temurin:17-jre
+
+**前端 Node 升级**：
+- 本地开发：v22.16.0
+- Docker 构建：node:22-alpine
+
+### 10.2 依赖版本优化（JDK 17 最兼容版本）
+
+| 依赖 | 原版本 | 新版本 | 说明 |
+|------|--------|--------|------|
+| Spring Boot | 2.7.18 | 2.7.18 | LTS 版本，官方支持 JDK 17 |
+| gRPC | 1.59.0 | 1.62.2 | 性能优化，JDK 17 兼容 |
+| Protobuf | 3.25.1 | 3.25.3 | 最新稳定版，JDK 17 兼容 |
+| Lombok | 1.18.30 | 1.18.32 | JDK 17 兼容性修复 |
+| H2 | 2.1.214 | 2.2.224 | 最新稳定版 |
+| JJWT | 0.9.1 | 0.11.5 | 安全升级，统一框架层管理 |
+| Maven Compiler | 3.8.1 | 3.12.1 | JDK 17 编译优化 |
+
+### 10.3 脚本目录重构
+
+**重构前**：
+```
+ops/scripts/
+├── build-all.sh        (缺少 APISIX)
+├── build-apisix.sh
+└── local/
+    ├── build-local.sh
+    └── start-local.sh
+```
+
+**重构后**：
+```
+ops/scripts/
+├── docker/             # Docker 镜像构建脚本
+│   ├── build-all.sh     # 所有镜像（含 APISIX）
+│   ├── build-apisix.sh  # APISIX 网关
+│   ├── build-backend.sh # 后端服务
+│   └── build-frontend.sh # 前端应用
+└── local/              # 本地开发脚本
+    ├── build.sh         # 本地编译
+    ├── start.sh         # 本地启动/停止
+    └── README.md        # 使用说明
+```
+
+### 10.4 新增特性
+
+1. **本地一键编译脚本**：`ops/scripts/local/build.sh`
+2. **本地一键启动脚本**：`ops/scripts/local/start.sh`，支持 start/stop/restart/status
+3. **APISIX 配置热挂载**：本地启动时通过 Docker volume 挂载配置文件，修改无需重建镜像
+4. **环境版本文档**：完整的版本一致性说明文档

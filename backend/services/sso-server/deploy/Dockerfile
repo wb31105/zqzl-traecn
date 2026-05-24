@@ -1,4 +1,4 @@
-FROM maven:3.8.6-eclipse-temurin-11 AS builder
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
 
 COPY backend/frameworks/zqzl-framework/pom.xml ./frameworks/zqzl-framework/
@@ -13,7 +13,7 @@ COPY backend/services/sso-server ./services/sso-server
 RUN mvn -f ./frameworks/zqzl-framework/pom.xml clean install -DskipTests -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
 RUN mvn -f ./services/sso-server/pom.xml clean package -DskipTests -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
 
-FROM eclipse-temurin:11-jre
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 
 COPY --from=builder /app/services/sso-server/target/sso-server-1.0.0.jar app.jar
