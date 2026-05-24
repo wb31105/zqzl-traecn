@@ -8,6 +8,8 @@ PID_DIR="$PROJECT_ROOT/.pid"
 mkdir -p "$LOG_DIR"
 mkdir -p "$PID_DIR"
 
+APISIX_CONFIG_DIR="$PROJECT_ROOT/ops/docker/apisix"
+
 echo "========================================"
 echo "  ZQZL 本地一键启动脚本"
 echo "========================================"
@@ -43,10 +45,12 @@ stop_all_services() {
     echo ""
     echo "停止所有服务..."
     
-    if docker ps -q -f name=zqzl-apisix-local >/dev/null 2>&1; then
-        echo "停止 APISIX 网关..."
-        docker stop zqzl-apisix-local 2>/dev/null || true
-        docker rm zqzl-apisix-local 2>/dev/null || true
+    if [ -f "$PROJECT_ROOT/docker-compose-local.yml" ]; then
+        if docker ps -q -f name=zqzl-apisix-local >/dev/null 2>&1; then
+            echo "停止 APISIX 网关..."
+            cd "$PROJECT_ROOT"
+            docker compose -f docker-compose-local.yml down 2>/dev/null || true
+        fi
     fi
     
     kill_existing_process "$PID_DIR/user-server.pid" "user-server"
@@ -67,27 +71,32 @@ start_apisix() {
         return 1
     fi
     
-    echo "检查 APISIX 本地镜像..."
-    if ! docker images zqzl/apisix-gateway:local --format "{{.Repository}}" | grep -q "zqzl/apisix-gateway"; then
-        echo "APISIX 本地镜像不存在，开始构建..."
+    echo "检查 APISIX 网关镜像..."
+    if ! docker images zqzl/apisix-gateway:latest --format "{{.Repository}}" | grep -q "zqzl/apisix-gateway"; then
+        echo "APISIX 网关镜像不存在，开始构建..."
         bash "$PROJECT_ROOT/ops/scripts/docker/build-apisix.sh"
     fi
     
     echo "启动 APISIX 网关容器..."
-    docker run -d \
-        --name zqzl-apisix-local \
-        --network host \
-        --restart unless-stopped \
-        zqzl/apisix-gateway:local
+    echo "  - 使用 docker compose 方式启动"
+    echo "  - 挂载本地配置文件: $APISIX_CONFIG_DIR"
+    echo "  - 使用 host.docker.internal 访问宿主机服务（兼容 Mac/Windows/Linux）"
+    echo "  - 监听端口: 8080 (映射到容器 9080)"
+    
+    cd "$PROJECT_ROOT"
+    docker compose -f docker-compose-local.yml up -d
     
     sleep 3
     
     if docker ps -q -f name=zqzl-apisix-local >/dev/null 2>&1; then
         echo "APISIX 网关启动成功！"
-        echo "  - HTTP: http://localhost:8080"
+        echo "  - 登录门户: http://sso.local.bw.com:8080"
+        echo "  - 管理平台: http://admin.local.bw.com:8080"
+        echo "  - API 网关: http://api.local.bw.com:8080"
+        echo "  - 请配置 hosts: 127.0.0.1 sso.local.bw.com admin.local.bw.com api.local.bw.com"
     else
         echo "APISIX 网关启动失败"
-        docker logs zqzl-apisix-local 2>&1 | tail -20
+        docker compose -f docker-compose-local.yml logs 2>&1 | tail -20
     fi
     echo ""
 }
@@ -123,8 +132,8 @@ start_user_server() {
     
     if kill -0 "$(cat "$PID_DIR/user-server.pid")" 2>/dev/null; then
         echo "user-server 启动成功！"
-        echo "  - HTTP: http://localhost:8082"
-        echo "  - gRPC: localhost:9092"
+        echo "  - HTTP 端口: 8082"
+        echo "  - gRPC 端口: 9092"
         echo "  - 日志: $LOG_DIR/user-server.log"
     else
         echo "user-server 启动失败"
@@ -164,8 +173,8 @@ start_sso_server() {
     
     if kill -0 "$(cat "$PID_DIR/sso-server.pid")" 2>/dev/null; then
         echo "sso-server 启动成功！"
-        echo "  - HTTP: http://localhost:8081"
-        echo "  - gRPC: localhost:9091"
+        echo "  - HTTP 端口: 8081"
+        echo "  - gRPC 端口: 9091"
         echo "  - 日志: $LOG_DIR/sso-server.log"
     else
         echo "sso-server 启动失败"
@@ -199,7 +208,7 @@ start_sso_web() {
     
     if kill -0 "$(cat "$PID_DIR/sso-web.pid")" 2>/dev/null; then
         echo "sso-web 启动成功！"
-        echo "  - 访问: http://localhost:3001"
+        echo "  - 端口: 3001"
         echo "  - 日志: $LOG_DIR/sso-web.log"
     else
         echo "sso-web 启动失败"
@@ -233,7 +242,7 @@ start_user_web() {
     
     if kill -0 "$(cat "$PID_DIR/user-web.pid")" 2>/dev/null; then
         echo "user-web 启动成功！"
-        echo "  - 访问: http://localhost:3002"
+        echo "  - 端口: 3002"
         echo "  - 日志: $LOG_DIR/user-web.log"
     else
         echo "user-web 启动失败"
@@ -250,7 +259,7 @@ show_status() {
     
     echo "APISIX 网关:"
     if docker ps -q -f name=zqzl-apisix-local >/dev/null 2>&1; then
-        echo "  ✅ 运行中 - http://localhost:8080"
+        echo "  ✅ 运行中 (端口: 8080)"
     else
         echo "  ❌ 未运行"
     fi
@@ -258,13 +267,13 @@ show_status() {
     echo ""
     echo "后端服务:"
     if [ -f "$PID_DIR/user-server.pid" ] && kill -0 "$(cat "$PID_DIR/user-server.pid")" 2>/dev/null; then
-        echo "  ✅ user-server - http://localhost:8082 (PID: $(cat "$PID_DIR/user-server.pid"))"
+        echo "  ✅ user-server - 端口: 8082 (PID: $(cat "$PID_DIR/user-server.pid"))"
     else
         echo "  ❌ user-server - 未运行"
     fi
     
     if [ -f "$PID_DIR/sso-server.pid" ] && kill -0 "$(cat "$PID_DIR/sso-server.pid")" 2>/dev/null; then
-        echo "  ✅ sso-server - http://localhost:8081 (PID: $(cat "$PID_DIR/sso-server.pid"))"
+        echo "  ✅ sso-server - 端口: 8081 (PID: $(cat "$PID_DIR/sso-server.pid"))"
     else
         echo "  ❌ sso-server - 未运行"
     fi
@@ -272,17 +281,25 @@ show_status() {
     echo ""
     echo "前端应用:"
     if [ -f "$PID_DIR/sso-web.pid" ] && kill -0 "$(cat "$PID_DIR/sso-web.pid")" 2>/dev/null; then
-        echo "  ✅ sso-web - http://localhost:3001 (PID: $(cat "$PID_DIR/sso-web.pid"))"
+        echo "  ✅ sso-web - 端口: 3001 (PID: $(cat "$PID_DIR/sso-web.pid"))"
     else
         echo "  ❌ sso-web - 未运行"
     fi
     
     if [ -f "$PID_DIR/user-web.pid" ] && kill -0 "$(cat "$PID_DIR/user-web.pid")" 2>/dev/null; then
-        echo "  ✅ user-web - http://localhost:3002 (PID: $(cat "$PID_DIR/user-web.pid"))"
+        echo "  ✅ user-web - 端口: 3002 (PID: $(cat "$PID_DIR/user-web.pid"))"
     else
         echo "  ❌ user-web - 未运行"
     fi
     
+    echo ""
+    echo "网关访问地址（需配置 hosts）:"
+    echo "  登录门户: http://sso.local.bw.com:8080"
+    echo "  管理平台: http://admin.local.bw.com:8080"
+    echo "  API 网关: http://api.local.bw.com:8080"
+    echo ""
+    echo "Hosts 配置:"
+    echo "  127.0.0.1 sso.local.bw.com admin.local.bw.com api.local.bw.com"
     echo ""
     echo "默认账号: admin / admin123"
     echo ""

@@ -88,7 +88,7 @@ sequenceDiagram
 
     Note over U,US: ═══════════ 阶段1：触发授权请求 ═══════════
     
-    U->>UW: 1. 访问 http://localhost:3001/users
+    U->>UW: 1. 访问 http://admin.local.bw.com:3002/users
     UW->>UW: 2. ProtectedRoute 检查 access_token
     
     alt localStorage 有有效 token
@@ -98,7 +98,7 @@ sequenceDiagram
         UW->>U: 显示页面
     else 无 token 或 token 已过期
         UW->>U: 3. 重定向到授权服务器
-        Note right of UW: URL: /oauth2/authorize?<br>response_type=code<br>&client_id=user-web-client<br>&redirect_uri=http://localhost:3001/sso/callback<br>&scope=openid profile read write<br>&state=xyz123
+        Note right of UW: URL: /oauth2/authorize?<br>response_type=code<br>&client_id=user-web-client<br>&redirect_uri=http://admin.local.bw.com:3002/sso/callback<br>&scope=openid profile read write<br>&state=xyz123
     end
 
     Note over U,US: ═══════════ 阶段2：SSO 登录认证 ═══════════
@@ -130,7 +130,7 @@ sequenceDiagram
     alt 不需要用户授权（已配置不需要consent）
         SS->>SS: 14. 生成 Authorization Code（加密存储）
         SS->>U: 15. 302 重定向到客户端回调
-        Note right of U: URL: http://localhost:3001/sso/callback?<br>code=ac_abc123...<br>&state=xyz123
+        Note right of U: URL: http://admin.local.bw.com:3002/sso/callback?<br>code=ac_abc123...<br>&state=xyz123
     else 需要用户授权
         SS->>U: 14. 显示授权确认页面
         U->>SS: 15. 用户点击"同意授权"
@@ -192,11 +192,11 @@ sequenceDiagram
 const params = new URLSearchParams({
   response_type: 'code',           // 授权码模式
   client_id: 'user-web-client',    // 客户端ID
-  redirect_uri: 'http://localhost:3001/sso/callback',  // 回调地址
+  redirect_uri: 'http://admin.local.bw.com:3002/sso/callback',  // 回调地址
   scope: 'openid profile read write',  // 权限范围
   state: Math.random().toString(36).substring(2, 15)  // CSRF 防护
 });
-window.location.href = `http://localhost:8080/oauth2/authorize?${params}`;
+window.location.href = `http://api.local.bw.com:8080/oauth2/authorize?${params}`;
 ```
 
 **关键参数说明**:
@@ -205,7 +205,7 @@ window.location.href = `http://localhost:8080/oauth2/authorize?${params}`;
 | -------------------- | ------------------- | ------------------------------------ |
 | `response_type=code` | 指定使用授权码模式           | 必填                                   |
 | `client_id`          | 客户端标识，必须提前注册        | `user-web-client`                    |
-| `redirect_uri`       | 授权成功后回调地址，必须与注册完全一致 | `http://localhost:3001/sso/callback` |
+| `redirect_uri`       | 授权成功后回调地址，必须与注册完全一致 | `http://admin.local.bw.com:3002/sso/callback` |
 | `scope`              | 请求的权限范围，空格分隔        | `openid profile read write`          |
 | `state`              | 随机值，用于 CSRF 防护      | 随机字符串                                |
 
@@ -423,7 +423,7 @@ sequenceDiagram
     localStorage.clear();
     
     UW->>U: 3. 重定向到 SSO 登出端点
-    Note right of U: URL: http://localhost:8080/logout
+    Note right of U: URL: http://api.local.bw.com:8080/logout
     
     SS->>SS: 4. 销毁 Session
     Note right of SS: • session.invalidate()<br>• 删除 SSO_SESSION Cookie
@@ -940,12 +940,12 @@ sequenceDiagram
     App_Web->>App_Web: 2. ProtectedRoute 检查 localStorage 是否有 sso_token
     alt 没有 sso_token
         App_Web->>User: 3. 重定向到 SSO 登录页
-        Note over User: URL: http://localhost:3000?redirect=http://localhost/user
+        Note over User: URL: http://sso.local.bw.com:3001?redirect=http://admin.local.bw.com:3002
     end
     
     User->>SSO_Web: 4. 完成 SSO 登录流程(见登录流程图)
     SSO_Web->>User: 5. 登录成功，重定向到应用回调地址
-    Note over User: URL: http://localhost/user/sso/callback?originalPath=/users&ticket=ST-xxx&username=xxx
+    Note over User: URL: http://admin.local.bw.com:3002/sso/callback?originalPath=/users&ticket=ST-xxx&username=xxx
     
     User->>App_Web: 6. 访问应用回调地址 /user/sso/callback
     App_Web->>App_Web: 7. SsoCallback 组件获取 URL 参数(ticket, username, originalPath)

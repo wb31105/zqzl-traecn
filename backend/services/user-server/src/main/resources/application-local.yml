@@ -10,7 +10,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8081
+          issuer-uri: http://api.local.bw.com
           jwk-set-uri: http://localhost:8081/oauth2/jwks
 
 grpc:
@@ -22,9 +22,9 @@ grpc:
 
 sso:
   oauth2:
-    token-uri: http://localhost:8081/oauth2/token
-    authorization-uri: http://localhost:8081/oauth2/authorize
-    redirect-uri: http://localhost:3002/sso/callback
+    token-uri: http://api.local.bw.com/oauth2/token
+    authorization-uri: http://api.local.bw.com/oauth2/authorize
+    redirect-uri: http://admin.local.bw.com/sso/callback
     scope: openid profile read write
 
 logging:

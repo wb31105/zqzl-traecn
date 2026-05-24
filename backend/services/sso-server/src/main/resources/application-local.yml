@@ -19,12 +19,12 @@ grpc:
 
 sso:
   oauth2:
-    issuer-uri: http://localhost:8081
+    issuer-uri: http://api.local.bw.com
   web:
-    login-url: http://localhost:3001/login
-    logout-success-url: http://localhost:3001/login?logout
+    login-url: http://sso.local.bw.com/login
+    logout-success-url: http://sso.local.bw.com/login?logout
   client:
-    user-web-redirect-uri: http://localhost:3002/sso/callback
+    user-web-redirect-uri: http://admin.local.bw.com/sso/callback
 
 logging:
   level:

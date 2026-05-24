@@ -6,6 +6,16 @@ services:
       - "80:9080"
       - "443:9443"
       - "9090:9090"
+    volumes:
+      - ./ops/docker/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+    environment:
+      - API_HOST=api.bw.com
+      - SSO_WEB_HOST=sso.bw.com
+      - ADMIN_WEB_HOST=admin.bw.com
+      - SSO_SERVER_UPSTREAM=sso-server:8080
+      - USER_SERVER_UPSTREAM=user-server:8080
+      - SSO_WEB_UPSTREAM=sso-web:80
+      - USER_WEB_UPSTREAM=user-web:80
     depends_on:
       sso-web:
         condition: service_started

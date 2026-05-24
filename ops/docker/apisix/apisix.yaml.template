@@ -1,0 +1,50 @@
+routes:
+  - id: api-sso-server-route
+    uri: /v1/auth/*
+    priority: 100
+    host: ${API_HOST}
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/v1/auth/(.*)", "/sso/v1/auth/$1"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "${SSO_SERVER_UPSTREAM}": 1
+
+  - id: api-oauth2-route
+    uri: /oauth2/*
+    priority: 99
+    host: ${API_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${SSO_SERVER_UPSTREAM}": 1
+
+  - id: api-user-server-route
+    uri: /v1/users/*
+    priority: 98
+    host: ${API_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${USER_SERVER_UPSTREAM}": 1
+
+  - id: sso-web-route
+    uri: /*
+    priority: 50
+    host: ${SSO_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${SSO_WEB_UPSTREAM}": 1
+
+  - id: admin-web-route
+    uri: /*
+    priority: 49
+    host: ${ADMIN_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${USER_WEB_UPSTREAM}": 1
+
+#END

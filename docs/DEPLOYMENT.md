@@ -4,12 +4,12 @@
 
 ### 1.1 环境命名规范
 
-所有项目统一使用 `local` 作为本地开发环境标识，其他环境配置通过环境变量动态注入。
+所有项目统一使用 `local` 作为本地开发环境标识，`integration` 作为集成环境（Docker Compose）标识，其他环境配置通过环境变量动态注入。
 
 | 环境类型 | 配置文件命名 | 说明 |
 |---------|-------------|------|
 | 本地开发环境 | `application-local.yml` (后端) / `.env.local` (前端) | 本地开发使用 |
-| 生产/容器环境 | `application.yml` (后端) / `.env` (前端) | 默认配置，通过环境变量覆盖 |
+| 集成环境 | `application.yml` (后端) / `.env` (前端) | Docker Compose 部署 |
 
 ### 1.2 运行时版本统一规范
 
@@ -41,15 +41,35 @@
 | 环境 | APISIX 版本 | 配置中心 | 是否需要 etcd |
 |------|------------|---------|-------------|
 | 本地开发 | 2.15.0 | yaml (standalone) | ❌ 不需要 |
-| Docker 环境 | 2.15.0 | yaml (standalone) | ❌ 不需要 |
+| 集成环境 | 2.15.0 | yaml (standalone) | ❌ 不需要 |
 
 > **重要说明**: 本项目使用 APISIX 的 standalone 模式（`config_center: yaml`），所有路由配置通过 `apisix.yaml` 文件加载，**完全不需要 etcd**。
+
+> **APISIX 构建说明**: 本项目使用**一套 Docker 镜像**同时支持本地环境和集成环境，通过**环境变量注入**实现配置差异化，无需维护多套配置文件。
+
+> **实现原理**:
+> 1. 镜像打包统一的配置模板 `apisix.yaml.template`（含 `${VAR}` 占位符）
+> 2. 容器启动时通过 `docker-entrypoint.sh` 脚本替换环境变量
+> 3. 生成最终的 `apisix.yaml` 配置文件
+
+> **环境变量列表**:
+> | 变量名 | 说明 | 集成环境值 | 本地环境值 |
+> |--------|------|----------|----------|
+> | `API_HOST` | API 网关域名 | api.bw.com | api.local.bw.com |
+> | `SSO_WEB_HOST` | SSO 登录门户域名 | sso.bw.com | sso.local.bw.com |
+> | `ADMIN_WEB_HOST` | 管理平台域名 | admin.bw.com | admin.local.bw.com |
+> | `SSO_SERVER_UPSTREAM` | SSO 服务上游地址 | sso-server:8080 | host.docker.internal:8081 |
+> | `USER_SERVER_UPSTREAM` | 用户服务上游地址 | user-server:8080 | host.docker.internal:8082 |
+> | `SSO_WEB_UPSTREAM` | SSO 前端上游地址 | sso-web:80 | host.docker.internal:3001 |
+> | `USER_WEB_UPSTREAM` | 用户前端上游地址 | user-web:80 | host.docker.internal:3002 |
+
+> **网络说明**: 本地环境使用 `host.docker.internal` 特殊域名访问宿主机服务，兼容 Mac/Windows/Linux 各平台 Docker。
 
 ### 1.3 脚本目录结构规范
 
 ```
 ops/scripts/
-├── docker/              # Docker 镜像构建脚本
+├── docker/              # 集成环境（Docker）镜像构建脚本
 │   ├── build-all.sh     # 构建所有镜像（含 APISIX）
 │   ├── build-apisix.sh  # 构建 APISIX 网关镜像
 │   ├── build-backend.sh # 构建后端服务镜像
@@ -62,17 +82,17 @@ ops/scripts/
 
 ### 1.4 本地环境端口规划
 
-**本地环境域名统一使用 `localhost`**
+**本地环境域名统一使用 `*.local.bw.com`**
 
-| 服务 | HTTP 端口 | HTTPS 端口 | gRPC 端口 | 说明 |
-|------|----------|-----------|----------|------|
-| APISIX 网关 | 8080 | 8443 | - | API 网关 |
-| sso-server | 8081 | 8444 | 9091 | 单点登录服务 |
-| user-server | 8082 | 8445 | 9092 | 用户中心服务 |
-| sso-web | 3001 | - | - | 登录门户前端 |
-| user-web | 3002 | - | - | 管理平台前端 |
+| 服务 | HTTP 端口 | gRPC 端口 | 域名 | 说明 |
+|------|----------|----------|------|------|
+| APISIX 网关 | 8080 | - | sso.local.bw.com / admin.local.bw.com / api.local.bw.com | API 网关 |
+| sso-server | 8081 | 9091 | - | 单点登录服务 |
+| user-server | 8082 | 9092 | - | 用户中心服务 |
+| sso-web | 3001 | - | sso.local.bw.com | 登录门户前端 |
+| user-web | 3002 | - | admin.local.bw.com | 管理平台前端 |
 
-### 1.5 Docker 环境域名与端口规划
+### 1.5 集成环境域名与端口规划
 
 **行业标准端口约定：**
 - 对外网关：HTTP 80, HTTPS 443（标准端口）
@@ -103,7 +123,7 @@ ops/scripts/
 
 | 文件 | 用途 | 激活方式 |
 |------|------|----------|
-| `application.yml` | 基础配置（无默认值，必须通过环境变量覆盖） | 默认加载 |
+| `application.yml` | 基础配置（集成环境） | 默认加载 |
 | `application-local.yml` | 本地开发环境具体值 | Spring Profile = `local` |
 
 **配置优先级**：
@@ -118,15 +138,19 @@ ops/scripts/
 
 | 文件 | 用途 | 加载方式 |
 |------|------|----------|
-| `.env` | 默认配置（Docker 环境） | 构建时默认加载 |
+| `.env` | 默认配置（集成环境） | 构建时默认加载 |
 | `.env.local` | 本地开发环境配置 | 本地启动时加载 |
 
 ### 2.4 APISIX 网关配置
 
 | 文件 | 用途 |
 |------|------|
-| `config.yaml` / `apisix.yaml` | Docker 环境配置 |
-| `config-local.yaml` / `apisix-local.yaml` | 本地开发环境配置 |
+| `config.yaml` / `apisix.yaml` | 集成环境配置（打包进镜像） |
+| `config-local.yaml` / `apisix-local.yaml` | 本地开发环境配置（启动时挂载） |
+
+**配置挂载说明**：
+- **集成环境**: 使用镜像内默认配置，路由使用 Docker 服务名
+- **本地环境**: 启动时通过 volume 挂载本地配置，路由使用 localhost + 端口
 
 ### 2.5 清理的无用配置
 
@@ -150,7 +174,17 @@ cd zqzl-traecn
 find . -name "*.sh" -type f -exec chmod +x {} \;
 ```
 
-### 3.2 一键编译（推荐）
+### 3.2 配置 Hosts
+
+**重要：本地开发建议配置域名访问**
+
+在 `/etc/hosts` 中添加：
+
+```
+127.0.0.1 sso.local.bw.com admin.local.bw.com api.local.bw.com
+```
+
+### 3.3 一键编译（推荐）
 
 ```bash
 # 编译框架层、后端服务、前端应用
@@ -162,7 +196,7 @@ bash ops/scripts/local/build.sh
 - 后端服务: `user-server`, `sso-server` (mvn package)
 - 前端应用: `sso-web`, `user-web` (npm run build:local)
 
-### 3.3 一键启动（推荐）
+### 3.4 一键启动（推荐）
 
 ```bash
 # 启动所有服务
@@ -179,24 +213,26 @@ bash ops/scripts/local/start.sh restart
 ```
 
 **APISIX 启动方式说明**:
-- 默认使用 Docker 方式（推荐，保证环境一致）
+- 使用统一的纯净 Docker 镜像 `zqzl/apisix-gateway:latest`（与集成环境完全一致）
 - 启动时通过 volume 挂载本地配置文件，修改配置无需重建镜像
-- 版本与 Docker 构建完全一致 (APISIX 2.15.0, standalone 模式，无需 etcd)
+- 使用 `docker compose -f docker-compose-local.yml up -d` 方式启动
+- 通过 `host.docker.internal` 特殊域名访问宿主机服务（兼容 Mac/Windows/Linux）
+- 版本与集成环境完全一致 (APISIX 2.15.0, standalone 模式，无需 etcd)
 
 **为什么用 Docker 启动 APISIX 而非本地安装？**
 
 | 对比项 | Docker 启动（推荐） | 本地安装 |
 |--------|-------------------|--------|
-| 环境一致性 | ✅ 与生产 Docker 环境 100% 一致 | ❌ 可能因系统环境不同有差异 |
+| 环境一致性 | ✅ 与集成环境 100% 一致 | ❌ 可能因系统环境不同有差异 |
 | 依赖安装 | ✅ 无需安装 OpenResty 等依赖 | ❌ 需手动安装 OpenResty、APISIX 及依赖 |
 | 配置管理 | ✅ 挂载本地配置文件，修改即生效 | ❌ 配置文件路径不同，需维护两份 |
 | 版本控制 | ✅ 镜像版本固定，可回滚 | ❌ 本地版本管理困难 |
 | 启动速度 | ⚡ 几秒启动 | ⚡ 安装耗时，启动快 |
 | 资源占用 | 📦 约 100MB 内存 | 📦 类似 |
 
-**结论**：推荐使用 Docker 方式启动 APISIX，能最大程度保证**本地开发 ≈ 生产环境**的一致性。如果确实需要本地安装，请参考 `ops/scripts/local/README.md` 中的说明。
+**结论**：推荐使用 Docker 方式启动 APISIX，能最大程度保证**本地开发 ≈ 集成环境**的一致性。
 
-### 3.4 手动启动（可选）
+### 3.5 手动启动（可选）
 
 #### 启动后端服务
 
@@ -240,17 +276,47 @@ npm install
 npm start
 ```
 
-### 3.5 访问地址（本地开发环境）
+#### 启动 APISIX 网关（Docker）
+
+```bash
+# 构建镜像
+bash ops/scripts/docker/build-apisix.sh
+
+# 方式一：使用 docker compose（推荐）
+docker compose -f docker-compose-local.yml up -d
+
+# 方式二：手动启动
+docker run -d \
+  --name zqzl-apisix-local \
+  -p 8080:9080 \
+  --add-host=host.docker.internal:host-gateway \
+  -v "$(pwd)/ops/docker/apisix/config-local.yaml:/usr/local/apisix/conf/config.yaml:ro" \
+  -v "$(pwd)/ops/docker/apisix/apisix-local.yaml:/usr/local/apisix/conf/apisix.yaml:ro" \
+  --restart unless-stopped \
+  zqzl/apisix-gateway:latest
+```
+
+**关键说明**：
+- `host.docker.internal` 是 Docker 内置的特殊 DNS 域名，指向宿主机
+- `--add-host=host.docker.internal:host-gateway` 确保 Linux 系统也能正常解析
+- 配置文件通过 volume 挂载，修改后重启容器即可生效
+
+### 3.6 访问地址（本地开发环境）
+
+**注意：需先配置 hosts 文件**
 
 | 服务 | 地址 | 说明 |
 |------|------|------|
-| APISIX 网关统一入口 | http://localhost:8080 | 推荐，通过网关访问 |
-| 登录门户（直连） | http://localhost:3001 | SSO 认证前端 |
-| 管理平台（直连） | http://localhost:3002 | 用户管理后台 |
-| SSO API | http://localhost:8081/sso/v1/auth | 认证服务 API |
-| User API | http://localhost:8082/v1/users | 用户服务 API |
+| APISIX 网关统一入口 | http://sso.local.bw.com:8080 | 推荐，通过网关访问 |
+| 登录门户（网关） | http://sso.local.bw.com:8080 | SSO 认证前端 |
+| 管理平台（网关） | http://admin.local.bw.com:8080 | 用户管理后台 |
+| API 网关 | http://api.local.bw.com:8080 | API 统一入口 |
+| 登录门户（直连） | http://sso.local.bw.com:3001 | SSO 认证前端 |
+| 管理平台（直连） | http://admin.local.bw.com:3002 | 用户管理后台 |
+| SSO API | http://api.local.bw.com:8081/sso/v1/auth | 认证服务 API |
+| User API | http://api.local.bw.com:8082/v1/users | 用户服务 API |
 
-### 3.6 默认测试账号
+### 3.7 默认测试账号
 
 | 用户名 | 密码 | 角色 |
 |--------|------|------|
@@ -258,9 +324,9 @@ npm start
 
 ---
 
-## 四、Docker Compose 部署
+## 四、集成环境（Docker Compose）部署
 
-### 4.1 配置 hosts（本地 Docker 环境测试）
+### 4.1 配置 hosts（本地集成环境测试）
 
 在 `/etc/hosts` 中添加：
 
@@ -325,7 +391,7 @@ docker compose logs -f user-server
 docker compose down
 ```
 
-### 4.4 访问地址（Docker 环境）
+### 4.4 访问地址（集成环境）
 
 **注意：需先配置 hosts 文件**
 
@@ -402,11 +468,31 @@ docker build -f deploy/Dockerfile -t zqzl/user-web:latest .
 
 ```bash
 # 方式一：使用脚本
-bash ops/scripts/build-apisix.sh
+bash ops/scripts/docker/build-apisix.sh
 
 # 方式二：手动构建
 cd ops/docker/apisix
 docker build -t zqzl/apisix-gateway:latest .
+```
+
+**APISIX 镜像使用说明**：
+
+本镜像支持通过环境变量或挂载方式自定义配置：
+
+| 方式 | 说明 | 示例 |
+|------|------|------|
+| 挂载配置文件 | 推荐，修改配置无需重建镜像 | `-v /path/config.yaml:/usr/local/apisix/conf/config.yaml` |
+| 环境变量指定 | 通过 entrypoint 自动复制 | `-e APISIX_CUSTOM_CONFIG=/mount/path/config.yaml` |
+
+**本地环境启动示例**：
+
+```bash
+docker run -d \
+  --name zqzl-apisix-local \
+  --network host \
+  -v "$(pwd)/ops/docker/apisix/config-local.yaml:/usr/local/apisix/conf/config.yaml:ro" \
+  -v "$(pwd)/ops/docker/apisix/apisix-local.yaml:/usr/local/apisix/conf/apisix.yaml:ro" \
+  zqzl/apisix-gateway:latest
 ```
 
 ---
@@ -415,7 +501,7 @@ docker build -t zqzl/apisix-gateway:latest .
 
 ### 6.1 sso-server 环境变量（必须显式配置，无默认值）
 
-| 变量名 | 说明 | Docker 配置示例 |
+| 变量名 | 说明 | 集成环境配置示例 |
 |--------|------|--------------|
 | `SPRING_PROFILES_ACTIVE` | Spring Profile | prod |
 | `SERVER_PORT` | HTTP 端口 | 8080 |
@@ -430,7 +516,7 @@ docker build -t zqzl/apisix-gateway:latest .
 
 ### 6.2 user-server 环境变量（必须显式配置，无默认值）
 
-| 变量名 | 说明 | Docker 配置示例 |
+| 变量名 | 说明 | 集成环境配置示例 |
 |--------|------|--------------|
 | `SPRING_PROFILES_ACTIVE` | Spring Profile | prod |
 | `SERVER_PORT` | HTTP 端口 | 8080 |
@@ -458,7 +544,7 @@ docker build -t zqzl/apisix-gateway:latest .
 find . -name "*.sh" -type f -exec chmod +x {} \;
 
 # 或单独给某个脚本
-chmod +x ops/scripts/build-apisix.sh
+chmod +x ops/scripts/docker/build-apisix.sh
 ```
 
 ### 7.2 gRPC 连接失败
@@ -467,7 +553,7 @@ chmod +x ops/scripts/build-apisix.sh
 
 **排查步骤**：
 1. 确认目标服务是否启动
-2. 检查 gRPC 端口是否正确（local: 9091/9092, docker: 9090）
+2. 检查 gRPC 端口是否正确（local: 9091/9092, 集成环境: 9090）
 3. 查看配置文件中 gRPC 地址是否正确
 4. 确认 Docker 网络是否正常
 
@@ -516,6 +602,14 @@ kill $(lsof -ti :8081 -ti :8082 -ti :9091 -ti :9092 -ti :3001 -ti :3002)
 
 **解决方案**：将 `enable_admin` 设为 `false`
 
+**问题 3**：本地环境 APISIX 无法连接本地服务
+
+**原因**：Docker 容器内的 `localhost` 指向容器本身，而非宿主机
+
+**解决方案**：
+- 使用 `--network host` 网络模式（推荐，已在脚本中配置）
+- 或使用 `host.docker.internal` 作为主机名（需 Docker Desktop 支持）
+
 ---
 
 ## 八、服务维护
@@ -523,7 +617,7 @@ kill $(lsof -ti :8081 -ti :8082 -ti :9091 -ti :9092 -ti :3001 -ti :3002)
 ### 8.1 查看服务状态
 
 ```bash
-# Docker Compose 方式
+# Docker Compose 方式（集成环境）
 docker compose ps
 
 # 查看日志
@@ -558,6 +652,9 @@ docker compose up -d --force-recreate sso-server
 
 | 版本 | 日期 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| v7.2 | 2026-05-24 | APISIX环境变量注入：一套配置模板+entrypoint变量替换，7个环境变量控制差异化配置；启动脚本保留网关域名访问信息 | 系统 |
+| v7.1 | 2026-05-24 | APISIX纯净镜像重构：配置完全不打包，统一挂载；新增docker-compose-local.yml；解决Mac Docker网络兼容性 | 系统 |
+| v7.0 | 2026-05-24 | 环境命名统一：Docker环境→集成环境；本地域名统一使用*.local.bw.com；APISIX镜像统一，配置通过挂载区分 | 系统 |
 | v6.0 | 2026-05-24 | 环境统一升级：JDK 17 + Node 22，脚本目录重构，依赖版本优化 | 系统 |
 | v5.0 | 2026-05-23 | 配置规范统一：local 环境命名、端口规范、域名规范 | 系统 |
 | v4.0 | 2026-05-21 | 架构重构：APISIX 网关 + gRPC 服务间调用 | 系统 |
@@ -567,60 +664,98 @@ docker compose up -d --force-recreate sso-server
 
 ---
 
-## 十、v6.0 版本更新说明
+## 十、v7.0 版本更新说明
 
-### 10.1 运行时环境统一
+### 10.1 环境命名统一
 
-**后端 JDK 升级**：
-- 本地开发：Temurin-17.0.15+6
-- Docker 构建：maven:3.9.6-eclipse-temurin-17
-- Docker 运行：eclipse-temurin:17-jre
+**原命名**：
+- 本地开发环境
+- Docker 环境
 
-**前端 Node 升级**：
-- 本地开发：v22.16.0
-- Docker 构建：node:22-alpine
+**新命名**：
+- 本地开发环境（不变）
+- 集成环境（原 Docker 环境）
 
-### 10.2 依赖版本优化（JDK 17 最兼容版本）
+> **原因**：避免"本地 Docker 环境"与"集成环境"产生歧义，明确区分"本机直接运行"与"Docker Compose 集成部署"两种模式。
 
-| 依赖 | 原版本 | 新版本 | 说明 |
-|------|--------|--------|------|
-| Spring Boot | 2.7.18 | 2.7.18 | LTS 版本，官方支持 JDK 17 |
-| gRPC | 1.59.0 | 1.62.2 | 性能优化，JDK 17 兼容 |
-| Protobuf | 3.25.1 | 3.25.3 | 最新稳定版，JDK 17 兼容 |
-| Lombok | 1.18.30 | 1.18.32 | JDK 17 兼容性修复 |
-| H2 | 2.1.214 | 2.2.224 | 最新稳定版 |
-| JJWT | 0.9.1 | 0.11.5 | 安全升级，统一框架层管理 |
-| Maven Compiler | 3.8.1 | 3.12.1 | JDK 17 编译优化 |
+### 10.2 本地域名统一
 
-### 10.3 脚本目录重构
+**原配置**：
+- 使用 `localhost` + 端口访问
 
-**重构前**：
+**新配置**：
+- 统一使用 `*.local.bw.com` 域名
+- sso.local.bw.com - 登录门户
+- admin.local.bw.com - 管理平台
+- api.local.bw.com - API 网关
+
+**Hosts 配置**：
 ```
-ops/scripts/
-├── build-all.sh        (缺少 APISIX)
-├── build-apisix.sh
-└── local/
-    ├── build-local.sh
-    └── start-local.sh
+127.0.0.1 sso.local.bw.com admin.local.bw.com api.local.bw.com
 ```
 
-**重构后**：
+### 10.3 APISIX 环境变量注入（v7.2）
+
+**原方案**：
+- 两套配置目录（integration/local）
+- docker compose 挂载不同目录
+- 配置值硬编码在文件中
+
+**新方案**：
+- 一套配置模板 `apisix.yaml.template`（含 `${VAR}` 占位符）
+- 容器启动时通过 `docker-entrypoint.sh` 替换环境变量
+- 7个环境变量控制所有差异化配置
+- 路由ID统一固定（如 `api-user-server-route`）
+
+**环境变量列表**：
+| 变量名 | 说明 | 集成环境值 | 本地环境值 |
+|--------|------|----------|----------|
+| `API_HOST` | API 网关域名 | api.bw.com | api.local.bw.com |
+| `SSO_WEB_HOST` | SSO 登录门户域名 | sso.bw.com | sso.local.bw.com |
+| `ADMIN_WEB_HOST` | 管理平台域名 | admin.bw.com | admin.local.bw.com |
+| `SSO_SERVER_UPSTREAM` | SSO 服务上游地址 | sso-server:8080 | host.docker.internal:8081 |
+| `USER_SERVER_UPSTREAM` | 用户服务上游地址 | user-server:8080 | host.docker.internal:8082 |
+| `SSO_WEB_UPSTREAM` | SSO 前端上游地址 | sso-web:80 | host.docker.internal:3001 |
+| `USER_WEB_UPSTREAM` | 用户前端上游地址 | user-web:80 | host.docker.internal:3002 |
+
+**配置文件目录**：
 ```
-ops/scripts/
-├── docker/             # Docker 镜像构建脚本
-│   ├── build-all.sh     # 所有镜像（含 APISIX）
-│   ├── build-apisix.sh  # APISIX 网关
-│   ├── build-backend.sh # 后端服务
-│   └── build-frontend.sh # 前端应用
-└── local/              # 本地开发脚本
-    ├── build.sh         # 本地编译
-    ├── start.sh         # 本地启动/停止
-    └── README.md        # 使用说明
+ops/docker/apisix/
+├── Dockerfile              # 镜像构建文件
+├── apisix.yaml.template    # 路由配置模板（含环境变量占位符）
+├── config.yaml             # APISIX基础配置（固定）
+└── docker-entrypoint.sh    # 启动时变量替换脚本
 ```
 
-### 10.4 新增特性
+**优势**：
+1. ✅ 一套模板，无需维护多套配置文件
+2. ✅ 环境变量清晰可查，便于调试
+3. ✅ 修改配置只需改 docker compose 的 environment 即可
+4. ✅ 路由 ID 统一，避免歧义
+5. ✅ 支持动态扩展新的环境变量
 
-1. **本地一键编译脚本**：`ops/scripts/local/build.sh`
-2. **本地一键启动脚本**：`ops/scripts/local/start.sh`，支持 start/stop/restart/status
-3. **APISIX 配置热挂载**：本地启动时通过 Docker volume 挂载配置文件，修改无需重建镜像
-4. **环境版本文档**：完整的版本一致性说明文档
+### 10.4 启动脚本打印信息统一
+
+**原方案**：
+- 后端服务显示 `http://localhost:8082`
+- 前端服务显示 `http://sso.local.bw.com:3001`
+- 格式不统一
+
+**新方案**：
+- 后端/前端服务统一只显示端口号（如 `端口: 8082`）
+- **网关启动和状态显示保留完整域名访问地址**
+- 使用者清楚知道配置 hosts 和访问入口
+
+### 10.5 配置文件更新
+
+**后端 application-local.yml**：
+- `sso.oauth2.issuer-uri`: http://api.local.bw.com
+- `sso.web.login-url`: http://sso.local.bw.com/login
+- `sso.web.logout-success-url`: http://sso.local.bw.com/login?logout
+- `sso.client.user-web-redirect-uri`: http://admin.local.bw.com/sso/callback
+
+**前端 .env.local**：
+- `REACT_APP_SSO_SERVER_URL`: http://api.local.bw.com
+- `REACT_APP_API_SERVER_URL`: http://api.local.bw.com
+- `REACT_APP_SSO_AUTH_URL`: http://api.local.bw.com/oauth2/authorize
+- `REACT_APP_SSO_TOKEN_URL`: http://api.local.bw.com/oauth2/token
