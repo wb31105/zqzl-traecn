@@ -22,10 +22,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: false
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+        format_sql: ${JPA_FORMAT_SQL:false}
   h2:
     console:
       enabled: true
@@ -59,3 +60,7 @@ sso:
     user-web-redirect-uri: ${SSO_CLIENT_USER_WEB_REDIRECT_URI}
   ticket:
     expiration: 86400000
+
+logging:
+  level:
+    com.sso: ${LOG_LEVEL_COM_SSO:INFO}

@@ -1,19 +1,28 @@
+networks:
+  zqzl-local-network:
+    driver: bridge
+    name: zqzl-local-network
+
 services:
   apisix:
     image: zqzl/apisix-gateway:latest
     container_name: zqzl-apisix-local
     ports:
       - "8080:9080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "8443:9443"
+      - "9090:9090"
     volumes:
       - ./ops/docker/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
     environment:
       - API_HOST=api.local.bw.com
       - SSO_WEB_HOST=sso.local.bw.com
       - ADMIN_WEB_HOST=admin.local.bw.com
-      - SSO_SERVER_UPSTREAM=host.docker.internal:8081
-      - USER_SERVER_UPSTREAM=host.docker.internal:8082
+      - SSO_SERVER_UPSTREAM=host.docker.internal:8080
+      - USER_SERVER_UPSTREAM=host.docker.internal:8081
       - SSO_WEB_UPSTREAM=host.docker.internal:3001
       - USER_WEB_UPSTREAM=host.docker.internal:3002
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - zqzl-local-network
     restart: unless-stopped

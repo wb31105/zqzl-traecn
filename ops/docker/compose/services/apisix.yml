@@ -1,0 +1,30 @@
+services:
+  apisix:
+    image: ${APISIX_IMAGE}
+    container_name: ${PROJECT_NAME}-apisix-gateway
+    ports:
+      - "${APISIX_HTTP_PORT}:9080"
+      - "${APISIX_HTTPS_PORT}:9443"
+      - "${APISIX_ADMIN_PORT}:9090"
+    volumes:
+      - ./ops/docker/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+    environment:
+      - API_HOST=${API_HOST}
+      - SSO_WEB_HOST=${SSO_WEB_HOST}
+      - ADMIN_WEB_HOST=${ADMIN_WEB_HOST}
+      - SSO_SERVER_UPSTREAM=${SSO_SERVER_UPSTREAM}
+      - USER_SERVER_UPSTREAM=${USER_SERVER_UPSTREAM}
+      - SSO_WEB_UPSTREAM=${SSO_WEB_UPSTREAM}
+      - USER_WEB_UPSTREAM=${USER_WEB_UPSTREAM}
+    depends_on:
+      sso-web:
+        condition: service_started
+      user-web:
+        condition: service_started
+      sso-server:
+        condition: service_started
+      user-server:
+        condition: service_started
+    networks:
+      - ${NETWORK_NAME}
+    restart: unless-stopped

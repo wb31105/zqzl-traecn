@@ -1,31 +1,40 @@
 server:
-  port: 8082
+  port: 8081
 
 spring:
-  profiles:
-    active: local
   jpa:
     show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://api.local.bw.com
-          jwk-set-uri: http://localhost:8081/oauth2/jwks
+          issuer-uri: http://sso.local.bw.com:8080
+          jwk-set-uri: http://localhost:8080/oauth2/jwks
 
 grpc:
   server:
-    port: 9092
+    port: 9091
   client:
     sso-server:
-      address: static://localhost:9091
+      address: static://localhost:9090
 
 sso:
   oauth2:
-    token-uri: http://api.local.bw.com/oauth2/token
-    authorization-uri: http://api.local.bw.com/oauth2/authorize
-    redirect-uri: http://admin.local.bw.com/sso/callback
-    scope: openid profile read write
+    token-uri: http://localhost:8080/oauth2/token
+    authorization-uri: http://sso.local.bw.com:8080/oauth2/authorize
+    redirect-uri: http://admin.local.bw.com:3002/oauth2/callback
+    scope: openid,profile,email
+
+user:
+  jwt:
+    secret: my-super-secret-key-for-jwt-token-generation-at-least-256-bits-long
+    expiration: 86400000
+  login:
+    max-attempts: 3
+    captcha-enabled-after: 1
 
 logging:
   level:

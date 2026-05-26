@@ -1,4 +1,7 @@
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+ARG BUILDER_IMAGE=maven:3.9.6-eclipse-temurin-17
+ARG RUNTIME_IMAGE=eclipse-temurin:17-jre
+
+FROM ${BUILDER_IMAGE} AS builder
 WORKDIR /app
 
 COPY backend/frameworks/zqzl-framework/pom.xml ./frameworks/zqzl-framework/
@@ -13,11 +16,15 @@ COPY backend/services/sso-server ./services/sso-server
 RUN mvn -f ./frameworks/zqzl-framework/pom.xml clean install -DskipTests -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
 RUN mvn -f ./services/sso-server/pom.xml clean package -DskipTests -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
 
-FROM eclipse-temurin:17-jre
+FROM ${RUNTIME_IMAGE}
 WORKDIR /app
 
 COPY --from=builder /app/services/sso-server/target/sso-server-1.0.0.jar app.jar
+COPY backend/services/sso-server/deploy/start.sh /usr/local/bin/start.sh
+
+RUN chmod +x /usr/local/bin/start.sh
 
 EXPOSE 8080 9090
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["start.sh"]
+CMD ["docker"]

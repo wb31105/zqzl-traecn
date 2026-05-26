@@ -1,30 +1,36 @@
 server:
-  port: 8081
+  port: 8080
 
 spring:
-  profiles:
-    active: local
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
   security:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:8081/oauth2/jwks
+          issuer-uri: http://sso.local.bw.com:8080
+          jwk-set-uri: http://localhost:8080/oauth2/jwks
 
 grpc:
   server:
-    port: 9091
+    port: 9090
   client:
     user-server:
-      address: static://localhost:9092
+      address: static://localhost:9091
 
 sso:
   oauth2:
-    issuer-uri: http://api.local.bw.com
+    issuer-uri: http://sso.local.bw.com:8080
   web:
-    login-url: http://sso.local.bw.com/login
-    logout-success-url: http://sso.local.bw.com/login?logout
+    login-url: http://sso.local.bw.com:3001/login
+    logout-success-url: http://sso.local.bw.com:3001/login
   client:
-    user-web-redirect-uri: http://admin.local.bw.com/sso/callback
+    user-web-redirect-uri: http://admin.local.bw.com:3002/oauth2/callback
+  ticket:
+    expiration: 86400000
 
 logging:
   level:

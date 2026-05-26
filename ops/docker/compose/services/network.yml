@@ -1,0 +1,4 @@
+networks:
+  ${NETWORK_NAME}:
+    driver: bridge
+    name: ${NETWORK_NAME}

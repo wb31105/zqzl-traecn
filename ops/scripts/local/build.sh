@@ -1,15 +1,17 @@
 #!/bin/bash
-
 set -e
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
+MODULE="${1:-all}"
+
 echo "========================================"
-echo "  ZQZL 本地一键编译脚本"
+echo "  ZQZL 本地编译脚本"
 echo "========================================"
-echo ""
 echo "项目根目录: $PROJECT_ROOT"
+echo "编译模块: $MODULE"
 echo ""
 
 check_java_version() {
@@ -40,7 +42,7 @@ check_node_version() {
 
 build_framework() {
     echo "========================================"
-    echo "  [1/3] 构建框架层 zqzl-framework"
+    echo "  构建框架层 zqzl-framework"
     echo "========================================"
     cd "$PROJECT_ROOT/backend/frameworks/zqzl-framework"
     mvn clean install -DskipTests
@@ -49,54 +51,49 @@ build_framework() {
     echo ""
 }
 
-build_backend_services() {
+build_backend_service() {
+    local service_name="$1"
+    
     echo "========================================"
-    echo "  [2/3] 构建后端服务"
+    echo "  构建 $service_name"
     echo "========================================"
     
-    echo ""
-    echo "构建 user-server..."
-    cd "$PROJECT_ROOT/backend/services/user-server"
+    cd "$PROJECT_ROOT/backend/services/$service_name"
     mvn clean package -DskipTests
-    echo "user-server 构建完成！"
     
     echo ""
-    echo "构建 sso-server..."
-    cd "$PROJECT_ROOT/backend/services/sso-server"
-    mvn clean package -DskipTests
-    echo "sso-server 构建完成！"
-    
-    echo ""
-    echo "所有后端服务构建完成！"
+    echo "$service_name 构建完成！"
+    echo "JAR 文件: target/${service_name}-1.0.0.jar"
     echo ""
 }
 
-build_frontend_apps() {
+build_frontend_app() {
+    local app_name="$1"
+    
     echo "========================================"
-    echo "  [3/3] 构建前端应用"
+    echo "  构建 $app_name"
     echo "========================================"
     
-    echo ""
-    echo "构建 sso-web..."
-    cd "$PROJECT_ROOT/frontend/apps/sso-web"
+    cd "$PROJECT_ROOT/frontend/apps/$app_name"
+    
     if [ ! -d "node_modules" ]; then
+        echo "安装依赖..."
         npm install
     fi
-    npm run build:local
-    echo "sso-web 构建完成！"
+    
+    npm run build
     
     echo ""
-    echo "构建 user-web..."
-    cd "$PROJECT_ROOT/frontend/apps/user-web"
-    if [ ! -d "node_modules" ]; then
-        npm install
-    fi
-    npm run build:local
-    echo "user-web 构建完成！"
-    
+    echo "$app_name 构建完成！"
+    echo "构建产物: build/"
     echo ""
-    echo "所有前端应用构建完成！"
-    echo ""
+}
+
+build_apisix() {
+    echo "========================================"
+    echo "  构建 APISIX 网关镜像"
+    echo "========================================"
+    bash "$PROJECT_ROOT/ops/scripts/docker/build-service.sh" apisix
 }
 
 show_summary() {
@@ -105,26 +102,119 @@ show_summary() {
     echo "========================================"
     echo ""
     echo "构建产物位置："
-    echo "  - user-server: backend/services/user-server/target/user-server-1.0.0.jar"
-    echo "  - sso-server: backend/services/sso-server/target/sso-server-1.0.0.jar"
-    echo "  - sso-web: frontend/apps/sso-web/build/"
-    echo "  - user-web: frontend/apps/user-web/build/"
-    echo ""
-    echo "APISIX 网关镜像（如需）："
-    echo "  bash ops/scripts/docker/build-apisix.sh"
+    
+    if [ "$MODULE" = "all" ] || [ "$MODULE" = "backend" ] || [ "$MODULE" = "user-server" ]; then
+        echo "  - user-server: backend/services/user-server/target/user-server-1.0.0.jar"
+    fi
+    
+    if [ "$MODULE" = "all" ] || [ "$MODULE" = "backend" ] || [ "$MODULE" = "sso-server" ]; then
+        echo "  - sso-server: backend/services/sso-server/target/sso-server-1.0.0.jar"
+    fi
+    
+    if [ "$MODULE" = "all" ] || [ "$MODULE" = "frontend" ] || [ "$MODULE" = "sso-web" ]; then
+        echo "  - sso-web: frontend/apps/sso-web/build/"
+    fi
+    
+    if [ "$MODULE" = "all" ] || [ "$MODULE" = "frontend" ] || [ "$MODULE" = "user-web" ]; then
+        echo "  - user-web: frontend/apps/user-web/build/"
+    fi
+    
     echo ""
     echo "使用以下命令启动服务："
     echo "  bash ops/scripts/local/start.sh"
     echo ""
 }
 
-echo ""
+show_help() {
+    echo "用法: $0 [模块]"
+    echo ""
+    echo "模块:"
+    echo "  all          编译所有模块（默认）"
+    echo "  framework    仅编译框架层"
+    echo "  backend      编译所有后端服务"
+    echo "  frontend     编译所有前端应用"
+    echo "  apisix       仅编译 APISIX 网关镜像"
+    echo "  sso-server   仅编译 sso-server"
+    echo "  user-server  仅编译 user-server"
+    echo "  sso-web      仅编译 sso-web"
+    echo "  user-web     仅编译 user-web"
+    echo ""
+    echo "示例:"
+    echo "  $0                          # 编译所有模块"
+    echo "  $0 backend                  # 仅编译后端服务"
+    echo "  $0 frontend                 # 仅编译前端应用"
+    echo "  $0 sso-server               # 仅编译 sso-server"
+    echo "  $0 apisix                   # 仅编译 APISIX 网关"
+    echo ""
+}
+
+if [ "$MODULE" = "help" ] || [ "$MODULE" = "--help" ] || [ "$MODULE" = "-h" ]; then
+    show_help
+    exit 0
+fi
+
 check_java_version
 check_maven_version
 check_node_version
 
-build_framework
-build_backend_services
-build_frontend_apps
-
-show_summary
+case "$MODULE" in
+    all)
+        build_framework
+        build_backend_service "user-server"
+        build_backend_service "sso-server"
+        build_frontend_app "sso-web"
+        build_frontend_app "user-web"
+        build_apisix
+        show_summary
+        ;;
+    
+    framework)
+        build_framework
+        ;;
+    
+    backend)
+        build_framework
+        build_backend_service "user-server"
+        build_backend_service "sso-server"
+        show_summary
+        ;;
+    
+    frontend)
+        build_frontend_app "sso-web"
+        build_frontend_app "user-web"
+        show_summary
+        ;;
+    
+    apisix)
+        build_apisix
+        ;;
+    
+    sso-server)
+        build_framework
+        build_backend_service "sso-server"
+        show_summary
+        ;;
+    
+    user-server)
+        build_framework
+        build_backend_service "user-server"
+        show_summary
+        ;;
+    
+    sso-web)
+        build_frontend_app "sso-web"
+        show_summary
+        ;;
+    
+    user-web)
+        build_frontend_app "user-web"
+        show_summary
+        ;;
+    
+    *)
+        echo "错误: 不支持的模块: $MODULE"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

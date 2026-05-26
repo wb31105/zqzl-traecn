@@ -14,10 +14,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: false
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${JPA_FORMAT_SQL:false}
   h2:
     console:
       enabled: true
@@ -52,3 +52,8 @@ user:
   login:
     max-attempts: 3
     captcha-enabled-after: 1
+
+logging:
+  level:
+    com.user: ${LOG_LEVEL_COM_USER:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_HIBERNATE_SQL:INFO}

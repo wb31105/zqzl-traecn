@@ -5,6 +5,10 @@ import SsoCallback from './components/SsoCallback';
 import UserManagement from './components/UserManagement';
 import axios from 'axios';
 
+const getEnv = (key) => {
+  return (window.__ENV__ && window.__ENV__[key]) || process.env[key];
+};
+
 axios.interceptors.request.use(
   (config) => {
     const accessToken = localStorage.getItem('access_token');
@@ -30,10 +34,10 @@ axios.interceptors.response.use(
 );
 
 const OAUTH2_CONFIG = {
-  authorizationUri: process.env.REACT_APP_OAUTH2_AUTH_URI,
-  clientId: process.env.REACT_APP_OAUTH2_CLIENT_ID,
-  redirectUri: process.env.REACT_APP_OAUTH2_REDIRECT_URI,
-  scope: process.env.REACT_APP_OAUTH2_SCOPE,
+  authorizationUri: getEnv('REACT_APP_OAUTH2_AUTH_URI'),
+  clientId: getEnv('REACT_APP_OAUTH2_CLIENT_ID'),
+  redirectUri: getEnv('REACT_APP_OAUTH2_REDIRECT_URI'),
+  scope: getEnv('REACT_APP_OAUTH2_SCOPE'),
   responseType: 'code'
 };
 
@@ -85,7 +89,7 @@ const ProtectedRoute = () => {
 const Navbar = () => {
   const handleLogout = () => {
     localStorage.clear();
-    const logoutUri = (process.env.REACT_APP_OAUTH2_AUTH_URI || '').replace('/oauth2/authorize', '');
+    const logoutUri = (getEnv('REACT_APP_OAUTH2_AUTH_URI') || '').replace('/oauth2/authorize', '');
     window.location.href = `${logoutUri}/logout`;
   };
 
