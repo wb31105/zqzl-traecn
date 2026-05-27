@@ -2,6 +2,9 @@ server:
   port: ${SERVER_PORT}
 
 spring:
+  autoconfigure:
+    exclude:
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
   application:
     name: user-server
   profiles:

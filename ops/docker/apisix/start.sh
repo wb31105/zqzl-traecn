@@ -10,7 +10,7 @@ echo "模式: $MODE"
 echo ""
 
 if [ "$MODE" = "local" ]; then
-    echo "本地启动模式（Docker Compose）"
+    echo "本地模式（Docker Compose）"
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
@@ -22,5 +22,5 @@ else
     echo "Docker启动模式"
     echo "执行 docker-entrypoint.sh 初始化配置..."
     echo ""
-    exec /usr/local/bin/docker-entrypoint.sh sh -c "/usr/bin/apisix init && /usr/local/openresty/bin/openresty -p /usr/local/apisix -g 'daemon off;'"
+    exec /usr/local/bin/docker-entrypoint.sh /usr/local/openresty/bin/openresty -p /usr/local/apisix -g 'daemon off;'
 fi

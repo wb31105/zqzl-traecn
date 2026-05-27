@@ -10,6 +10,9 @@ server:
         same-site: lax
 
 spring:
+  autoconfigure:
+    exclude:
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
   application:
     name: sso-server
   profiles:

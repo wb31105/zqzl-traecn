@@ -11,10 +11,10 @@ usage() {
     echo "用法: $0 <环境类型> [环境配置] [操作] [选项]"
     echo ""
     echo "环境类型:"
-    echo "  integration  集成环境（多厂商部署，全部服务 Docker 化）"
-    echo "  local        本地环境（仅 APISIX 网关 Docker 化）"
-    echo ""
-    echo "集成环境配置 (integration):"
+echo "  integration  集成部署模式（多厂商部署，全部服务 Docker 化）"
+echo "  local        本地模式（仅 APISIX 网关 Docker 化）"
+echo ""
+echo "集成部署模式配置 (integration):"
     echo "  default      使用默认配置 (.env.default)"
     echo "  <自定义>     使用自定义配置 (.env.<自定义>)"
     echo ""
@@ -31,18 +31,18 @@ usage() {
     echo "  --abort-on-container-exit  前台启动"
     echo ""
     echo "示例:"
-    echo "  # 集成环境 - 默认配置"
-    echo "  $0 integration default up"
-    echo "  $0 integration default up --abort-on-container-exit"
-    echo "  $0 integration default down"
-    echo ""
-    echo "  # 集成环境 - 自定义配置"
+    echo "  # 集成部署模式 - 默认配置"
+echo "  $0 integration default up"
+echo "  $0 integration default up --abort-on-container-exit"
+echo "  $0 integration default down"
+echo ""
+echo "  # 集成部署模式 - 自定义配置"
     echo "  $0 integration <自定义> up"
     echo "  $0 integration <自定义> logs apisix"
     echo ""
-    echo "  # 本地环境 - 仅 APISIX 网关"
-    echo "  $0 local apisix up"
-    echo "  $0 local apisix down"
+    echo "  # 本地模式 - 仅 APISIX 网关"
+echo "  $0 local apisix up"
+echo "  $0 local apisix down"
     echo ""
     echo "  # 构建镜像"
     echo "  $0 integration default build"
@@ -79,10 +79,10 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "错误: 环境配置文件不存在: $ENV_FILE"
     echo ""
     if [ "$ENV_TYPE" = "integration" ]; then
-        echo "可用的集成环境配置:"
+        echo "可用的集成部署模式配置:"
         ls "$ENV_DIR/integration/" | grep '^\.env\.' | sed 's/^\.env\./  - /'
     else
-        echo "可用的本地环境配置:"
+        echo "可用的本地模式配置:"
         ls "$ENV_DIR/local/" | grep '^\.env\.' | sed 's/^\.env\./  - /'
     fi
     echo ""
@@ -155,7 +155,6 @@ echo ""
 
 case "$ACTION" in
     up)
-        load_env "$ENV_FILE"
         echo "启动服务..."
         docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up $DETACH $SERVICES
         echo ""
@@ -163,7 +162,6 @@ case "$ACTION" in
         ;;
     
     down)
-        load_env "$ENV_FILE"
         echo "停止服务..."
         docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down $SERVICES
         echo ""
@@ -171,7 +169,6 @@ case "$ACTION" in
         ;;
     
     restart)
-        load_env "$ENV_FILE"
         echo "重启服务..."
         docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down $SERVICES
         sleep 2
@@ -182,7 +179,6 @@ case "$ACTION" in
     
     logs)
         SERVICE_NAME="$4"
-        load_env "$ENV_FILE"
         if [ -n "$SERVICE_NAME" ]; then
             docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" logs -f "$SERVICE_NAME"
         else

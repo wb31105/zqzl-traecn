@@ -2,6 +2,9 @@ services:
   user-server:
     image: ${USER_SERVER_IMAGE}
     container_name: ${PROJECT_NAME}-user-server
+    depends_on:
+      sso-server:
+        condition: service_started
     environment:
       - SPRING_PROFILES_ACTIVE=${USER_SERVER_PROFILE}
       - SERVER_PORT=${USER_SERVER_PORT}
@@ -14,13 +17,6 @@ services:
       - SSO_AUTHORIZATION_URI=${SSO_AUTHORIZATION_URI}
       - SSO_REDIRECT_URI=${SSO_REDIRECT_URI}
       - SSO_OAUTH2_SCOPE=${SSO_OAUTH2_SCOPE}
-      - REACT_APP_SSO_SERVER_URL=${REACT_APP_SSO_SERVER_URL}
-      - REACT_APP_API_SERVER_URL=${REACT_APP_API_SERVER_URL}
-      - REACT_APP_USER_WEB_URL=${REACT_APP_USER_WEB_URL}
-      - REACT_APP_OAUTH2_AUTH_URI=${REACT_APP_OAUTH2_AUTH_URI}
-      - REACT_APP_OAUTH2_CLIENT_ID=${REACT_APP_OAUTH2_CLIENT_ID}
-      - REACT_APP_OAUTH2_REDIRECT_URI=${REACT_APP_OAUTH2_REDIRECT_URI}
-      - REACT_APP_OAUTH2_SCOPE=${REACT_APP_OAUTH2_SCOPE}
     networks:
-      - ${NETWORK_NAME}
+      - zqzl-network
     restart: unless-stopped

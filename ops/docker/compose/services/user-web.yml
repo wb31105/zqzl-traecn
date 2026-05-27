@@ -10,7 +10,7 @@ services:
       - REACT_APP_OAUTH2_REDIRECT_URI=${REACT_APP_OAUTH2_REDIRECT_URI}
       - REACT_APP_OAUTH2_SCOPE=${REACT_APP_OAUTH2_SCOPE}
     networks:
-      - ${NETWORK_NAME}
+      - zqzl-network
     depends_on:
       - user-server
     restart: unless-stopped

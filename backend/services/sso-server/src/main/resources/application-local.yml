@@ -1,7 +1,10 @@
 server:
-  port: 8080
+  port: 8081
 
 spring:
+  autoconfigure:
+    exclude:
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
   jpa:
     show-sql: true
     properties:
@@ -12,14 +15,14 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://sso.local.bw.com:8080
-          jwk-set-uri: http://localhost:8080/oauth2/jwks
+          jwk-set-uri: http://localhost:8081/oauth2/jwks
 
 grpc:
   server:
-    port: 9090
+    port: 9091
   client:
     user-server:
-      address: static://localhost:9091
+      address: static://localhost:9092
 
 sso:
   oauth2:

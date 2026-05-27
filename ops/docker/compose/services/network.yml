@@ -1,4 +1,4 @@
 networks:
-  ${NETWORK_NAME}:
+  zqzl-network:
     driver: bridge
-    name: ${NETWORK_NAME}
+    name: zqzl-network

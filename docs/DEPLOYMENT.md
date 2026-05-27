@@ -8,12 +8,12 @@
 
 | 环境类型 | 说明 | 网关 | 前端 | 后端 |
 |---------|------|------|------|------|
-| **集成环境** | 多厂商/多环境部署，全部服务 Docker 化，通过不同 `.env` 配置文件部署到不同环境 | Docker 镜像 | Docker 镜像 | Docker 镜像 |
-| **本地开发环境** | 开发调试，仅网关 Docker 化，其他服务本地启动 | Docker 镜像 | 本地 `npm start` | 本地 `java -jar` |
+| **集成部署模式** | 多厂商/多环境部署，全部服务 Docker 化，通过不同 `.env` 配置文件部署到不同环境 | Docker 镜像 | Docker 镜像 | Docker 镜像 |
+| **本地模式** | 开发调试，仅网关 Docker 化，其他服务本地启动 | Docker 镜像 | 本地 `npm start` | 本地 `java -jar` |
 
 > **核心原则**：
-> - **集成环境**：通过配置文件 + 环境变量组合的方式，适用于多地部署
-> - **本地环境**：直接使用各项目类型规范的本地配置，不需要变量能覆盖就覆盖
+> - **集成部署模式**：通过配置文件 + 环境变量组合的方式，适用于多地部署
+> - **本地模式**：直接使用各项目类型规范的本地配置，不需要变量能覆盖就覆盖
 > - **通用脚本**：脚本能通用的做成通用的，用入参的方式替代差异
 > - **层次清晰**：层级环境配置层次分明，易于维护
 > - **Dockerfile 固化**：Dockerfile 是项目编码的一部分，固化的路径/名称不需要提炼为占位符
@@ -39,8 +39,8 @@
 
 ```
 zqzl-traecn/
-├── docker-compose.yml                      # 集成环境 Compose 总配置（include 子服务）
-├── docker-compose-local.yml                # 本地环境 Compose 配置（仅网关）
+├── docker-compose.yml                      # 集成部署模式 Compose 总配置（include 子服务）
+├── docker-compose-local.yml                # 本地模式 Compose 配置（仅网关）
 ├── backend/
 │   ├── frameworks/
 │   │   └── zqzl-framework/
@@ -65,14 +65,14 @@ zqzl-traecn/
 │       │   ├── public/
 │       │   │   └── env-config.js.template   # 前端配置模板
 │       │   ├── .env                        # 构建时环境变量
-│       │   └── .env.local                  # 本地环境变量（硬编码）
+│       │   └── .env.local                  # 本地模式变量（硬编码）
 │       └── user-web/
 │           └── deploy/                     # 同上，结构一致
 ├── ops/
 │   ├── env/                                # 环境配置目录（层次清晰）
-│   │   ├── integration/                    # 集成环境配置（多厂商）
+│   │   ├── integration/                    # 集成部署模式配置（多厂商）
 │   │   │   └── .env.default                # 默认配置（可复制为其他环境）
-│   │   └── local/                          # 本地环境配置
+│   │   └── local/                          # 本地模式配置
 │   │       └── .env.apisix                 # 本地网关配置
 │   ├── docker/
 │   │   ├── apisix/
@@ -103,8 +103,8 @@ zqzl-traecn/
 
 ### 2.2 设计原则
 
-1. **集成环境配置化**：集成环境所有配置通过 `.env` 文件注入，一套镜像多环境部署
-2. **本地配置规范化**：本地环境遵循各项目类型规范，使用硬编码的本地配置
+1. **集成部署模式配置化**：集成部署模式所有配置通过 `.env` 文件注入，一套镜像多环境部署
+2. **本地配置规范化**：本地模式遵循各项目类型规范，使用硬编码的本地配置
 3. **通用脚本参数化**：脚本通用化，通过入参方式解决差异，不写多份脚本
 4. **Docker Compose 分层化**：总 Compose 文件使用 `include` 方式引用子服务配置
 5. **层次结构清晰化**：环境配置按类型分层，目录结构一目了然
@@ -112,15 +112,15 @@ zqzl-traecn/
 
 ---
 
-## 三、集成环境部署（多厂商）
+## 三、集成部署模式部署（多厂商）
 
 ### 3.1 环境配置体系
 
-集成环境通过不同的 `.env` 配置文件支持多厂商/多环境部署：
+集成部署模式通过不同的 `.env` 配置文件支持多厂商/多环境部署：
 
 | 配置文件 | 用途 | 说明 |
 |---------|------|------|
-| `ops/env/integration/.env.default` | 默认集成环境 | 可复制作为其他环境的基础 |
+| `ops/env/integration/.env.default` | 默认集成部署模式 | 可复制作为其他环境的基础 |
 | `ops/env/integration/.env.<name>` | 自定义环境 | 根据部署需求创建 |
 
 > **添加新环境**：复制 `.env.default` 为 `.env.<名称>`，修改其中的配置即可
@@ -158,7 +158,7 @@ bash ops/scripts/docker/build-service.sh frontend   # 所有前端
 ### 3.4 一键启动所有服务
 
 ```bash
-# 启动默认集成环境（后台）
+# 启动默认集成部署模式（后台）
 bash ops/scripts/docker/start.sh integration default up
 
 # 启动自定义环境（前台，日志直接输出）
@@ -311,8 +311,8 @@ bash ops/scripts/local/start.sh start sso-web
 | API 网关 | http://api.local.bw.com:8080 | APISIX 网关入口 |
 | 登录门户（直连） | http://sso.local.bw.com:3001 | 直接访问前端开发服务器 |
 | 管理平台（直连） | http://admin.local.bw.com:3002 | 直接访问前端开发服务器 |
-| SSO API（直连） | http://localhost:8080 | 直接访问后端服务 |
-| User API（直连） | http://localhost:8081 | 直接访问后端服务 |
+| SSO API（直连） | http://localhost:8081 | 直接访问后端服务 |
+| User API（直连） | http://localhost:8082 | 直接访问后端服务 |
 
 ---
 
@@ -403,13 +403,13 @@ CMD ["docker"]
 
 | 文件 | 用途 | 配置方式 |
 |------|------|---------|
-| `application.yml` | 基础配置 | 占位符 `${VAR}`，集成环境通过环境变量注入 |
+| `application.yml` | 基础配置 | 占位符 `${VAR}`，集成部署模式通过环境变量注入 |
 | `application-local.yml` | 本地开发配置 | 硬编码，遵循 Spring Boot 规范 |
 
 **示例（application-local.yml）**：
 ```yaml
 server:
-  port: 8080
+  port: 8081
 
 spring:
   jpa:
@@ -419,14 +419,14 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://sso.local.bw.com:8080
-          jwk-set-uri: http://localhost:8080/oauth2/jwks
+          jwk-set-uri: http://localhost:8081/oauth2/jwks
 
 grpc:
   server:
-    port: 9090
+    port: 9091
   client:
     user-server:
-      address: static://localhost:9091
+      address: static://localhost:9092
 
 logging:
   level:
@@ -437,7 +437,7 @@ logging:
 
 | 文件 | 用途 | 配置方式 |
 |------|------|---------|
-| `.env` | 构建时环境变量 | 占位符，集成环境通过环境变量注入 |
+| `.env` | 构建时环境变量 | 占位符，集成部署模式通过环境变量注入 |
 | `.env.local` | 本地开发环境变量 | 硬编码，遵循 React 规范 |
 | `env-config.js.template` | 运行时配置模板 | 容器启动时替换占位符 |
 
@@ -544,7 +544,7 @@ ops/docker/compose/
 
 ### 8.2 根目录 Compose 文件
 
-**集成环境（docker-compose.yml）**：
+**集成部署模式（docker-compose.yml）**：
 ```yaml
 include:
   - path: ./ops/docker/compose/services/network.yml
@@ -555,7 +555,7 @@ include:
   - path: ./ops/docker/compose/services/apisix.yml
 ```
 
-**本地环境（docker-compose-local.yml）**：
+**本地模式（docker-compose-local.yml）**：
 ```yaml
 include:
   - path: ./ops/docker/compose/services/network.yml
@@ -595,7 +595,7 @@ services:
 
 ### 9.1 常用命令速查
 
-| 操作 | 集成环境 | 本地环境 |
+| 操作 | 集成部署模式 | 本地模式 |
 |------|---------|---------|
 | 构建镜像 | `bash ops/scripts/docker/build-service.sh all` | `bash ops/scripts/local/build.sh` |
 | 启动服务 | `bash ops/scripts/docker/start.sh integration default up` | `bash ops/scripts/local/start.sh` |
@@ -625,11 +625,12 @@ bash ops/scripts/docker/start.sh integration prod up
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
+| v10.0 | 2026-05-26 | 概念统一：本地模式→本地模式，集成部署模式→集成部署模式；修正本地模式端口规范（网关8080, sso-server8081, user-server8082, sso-web3001, user-web3002）；修正gRPC端口（sso 9091, user 9092）；修复本地模式start.sh stop命令无效问题；创建前端.env.local配置文件 |
 | v9.2 | 2026-05-26 | Dockerfile 固化路径不提取占位符；start.sh local 模式固定使用 local profile；修复本地网关网络配置问题 |
 | v9.1 | 2026-05-26 | 调整：各项目保留 start.sh 便于本地调试，Docker 内启动也复用；修复前端编译问题；清理多余示例文件 |
 | v9.0 | 2026-05-26 | 架构重构：两套环境概念明确，通用脚本参数化，Docker Compose 分层设计，本地配置规范化 |
 | v8.0 | 2026-05-26 | 多环境部署架构重构：统一 Dockerfile、统一启动脚本、环境变量全量注入 |
 | v7.2 | 2026-05-24 | APISIX 环境变量注入：一套配置模板+entrypoint 变量替换 |
 | v7.1 | 2026-05-24 | APISIX 纯净镜像重构：配置完全不打包，统一挂载 |
-| v7.0 | 2026-05-24 | 环境命名统一：Docker 环境→集成环境；本地域名统一使用 *.local.bw.com |
+| v7.0 | 2026-05-24 | 环境命名统一：Docker 环境→集成部署模式；本地域名统一使用 *.local.bw.com |
 | v6.0 | 2026-05-24 | 环境统一升级：JDK 17 + Node 22，脚本目录重构 |

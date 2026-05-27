@@ -5,22 +5,22 @@ networks:
 
 services:
   apisix:
-    image: zqzl/apisix-gateway:latest
-    container_name: zqzl-apisix-local
+    image: ${APISIX_IMAGE}
+    container_name: ${COMPOSE_PROJECT_NAME}-apisix-local
     ports:
-      - "8080:9080"
-      - "8443:9443"
-      - "9090:9090"
+      - "${APISIX_HTTP_PORT}:9080"
+      - "${APISIX_HTTPS_PORT}:9443"
+      - "${APISIX_ADMIN_PORT}:9090"
     volumes:
       - ./ops/docker/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
     environment:
-      - API_HOST=api.local.bw.com
-      - SSO_WEB_HOST=sso.local.bw.com
-      - ADMIN_WEB_HOST=admin.local.bw.com
-      - SSO_SERVER_UPSTREAM=host.docker.internal:8080
-      - USER_SERVER_UPSTREAM=host.docker.internal:8081
-      - SSO_WEB_UPSTREAM=host.docker.internal:3001
-      - USER_WEB_UPSTREAM=host.docker.internal:3002
+      - API_HOST=${API_HOST}
+      - SSO_WEB_HOST=${SSO_WEB_HOST}
+      - ADMIN_WEB_HOST=${ADMIN_WEB_HOST}
+      - SSO_SERVER_UPSTREAM=${SSO_SERVER_UPSTREAM}
+      - USER_SERVER_UPSTREAM=${USER_SERVER_UPSTREAM}
+      - SSO_WEB_UPSTREAM=${SSO_WEB_UPSTREAM}
+      - USER_WEB_UPSTREAM=${USER_WEB_UPSTREAM}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

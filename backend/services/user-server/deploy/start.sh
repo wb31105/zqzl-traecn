@@ -19,7 +19,7 @@ if [ "$MODE" = "local" ]; then
         echo "请先运行: mvn clean package -DskipTests"
         exit 1
     fi
-    echo "本地启动模式"
+    echo "本地模式"
     echo "JAR文件: $JAR_FILE"
     echo "Spring Profile: local"
     echo ""
@@ -27,7 +27,7 @@ if [ "$MODE" = "local" ]; then
 else
     JAR_FILE="/app/app.jar"
     ENV="${SPRING_PROFILES_ACTIVE:-prod}"
-    echo "Docker启动模式"
+    echo "集成部署模式"
     echo "JAR文件: $JAR_FILE"
     echo "Spring Profile: $ENV"
     echo ""

@@ -13,7 +13,7 @@ echo "模式: $MODE"
 echo ""
 
 if [ "$MODE" = "local" ]; then
-    echo "本地启动模式"
+    echo "本地模式"
     cd "$PROJECT_DIR"
 
     if [ ! -d "node_modules" ]; then
@@ -25,7 +25,7 @@ if [ "$MODE" = "local" ]; then
     echo ""
     exec npm start
 else
-    echo "Docker启动模式"
+    echo "集成部署模式"
     echo "执行 docker-entrypoint.sh 初始化配置..."
     echo ""
     exec /usr/local/bin/docker-entrypoint.sh nginx -g "daemon off;"

@@ -7,7 +7,7 @@ services:
       - "${APISIX_HTTPS_PORT}:9443"
       - "${APISIX_ADMIN_PORT}:9090"
     volumes:
-      - ./ops/docker/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ../../../../ops/docker/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
     environment:
       - API_HOST=${API_HOST}
       - SSO_WEB_HOST=${SSO_WEB_HOST}
@@ -26,5 +26,5 @@ services:
       user-server:
         condition: service_started
     networks:
-      - ${NETWORK_NAME}
+      - zqzl-network
     restart: unless-stopped

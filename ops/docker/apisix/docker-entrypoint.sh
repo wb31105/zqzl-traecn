@@ -40,6 +40,10 @@ else
     echo "警告: 模板文件不存在 $TEMPLATE_FILE"
 fi
 
+echo ""
+echo "初始化 APISIX..."
+/usr/bin/apisix init
+
 echo "========================================"
 echo "  启动 APISIX"
 echo "========================================"

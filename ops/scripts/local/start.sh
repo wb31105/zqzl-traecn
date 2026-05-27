@@ -7,15 +7,19 @@ cd "$PROJECT_ROOT"
 
 ACTION="${1:-start}"
 MODULE="${2:-all}"
+FOREGROUND="${3:-true}"
 
 ENV_FILE="$PROJECT_ROOT/ops/env/local/.env.apisix"
+PID_DIR="$PROJECT_ROOT/.pid"
+LOG_DIR="$PROJECT_ROOT/logs/local"
 
 echo "========================================"
-echo "  ZQZL 本地启动脚本"
+echo "  ZQZL 本地模式启动脚本"
 echo "========================================"
 echo "项目根目录: $PROJECT_ROOT"
 echo "操作: $ACTION"
 echo "模块: $MODULE"
+echo "前台模式: $FOREGROUND"
 echo ""
 
 load_gateway_env() {
@@ -35,18 +39,9 @@ check_port() {
     return 0
 }
 
-open_new_terminal() {
-    local command="$1"
-    local window_name="$2"
-    
-    osascript <<EOF
-tell application "Terminal"
-    activate
-    set newTab to do script "$command"
-    set custom title of newTab to "$window_name"
-    set current settings of newTab to settings set "Basic"
-end tell
-EOF
+get_pid_by_port() {
+    local port=$1
+    lsof -Pi :"$port" -sTCP:LISTEN -t 2>/dev/null | head -1
 }
 
 stop_apisix() {
@@ -56,7 +51,7 @@ stop_apisix() {
     fi
 }
 
-stop_process() {
+stop_process_by_pid() {
     local pid_file="$1"
     local service_name="$2"
     if [ -f "$pid_file" ]; then
@@ -65,8 +60,27 @@ stop_process() {
             echo "停止 $service_name (PID: $pid)..."
             kill "$pid" 2>/dev/null || true
             sleep 2
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "强制停止 $service_name (PID: $pid)..."
+                kill -9 "$pid" 2>/dev/null || true
+            fi
         fi
         rm -f "$pid_file"
+    fi
+}
+
+stop_process_by_port() {
+    local port="$1"
+    local service_name="$2"
+    local pid=$(get_pid_by_port "$port")
+    if [ -n "$pid" ]; then
+        echo "停止 $service_name (PID: $pid, 端口: $port)..."
+        kill "$pid" 2>/dev/null || true
+        sleep 2
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "强制停止 $service_name (PID: $pid)..."
+            kill -9 "$pid" 2>/dev/null || true
+        fi
     fi
 }
 
@@ -76,31 +90,15 @@ stop_all_services() {
 
     stop_apisix
 
-    stop_process "$PROJECT_ROOT/.pid/user-server.pid" "user-server"
-    stop_process "$PROJECT_ROOT/.pid/sso-server.pid" "sso-server"
-    stop_process "$PROJECT_ROOT/.pid/sso-web.pid" "sso-web"
-    stop_process "$PROJECT_ROOT/.pid/user-web.pid" "user-web"
+    stop_process_by_port "3002" "user-web"
+    stop_process_by_port "3001" "sso-web"
+    stop_process_by_port "8082" "user-server"
+    stop_process_by_port "8081" "sso-server"
+
+    rm -f "$PID_DIR"/*.pid
 
     echo ""
     echo "所有服务已停止"
-}
-
-start_in_new_terminal() {
-    local service_name="$1"
-    local start_command="$2"
-    local window_title="$3"
-
-    echo "正在打开新终端启动 $service_name..."
-    echo "  命令: $start_command"
-    echo ""
-
-    local full_command="cd '$PROJECT_ROOT' && clear && echo '========================================' && echo '  $window_title' && echo '========================================' && echo '' && $start_command"
-
-    open_new_terminal "$full_command" "$window_title"
-
-    sleep 2
-    echo "✓ $service_name 已在新终端启动"
-    echo ""
 }
 
 start_apisix() {
@@ -173,17 +171,30 @@ start_backend_service() {
     fi
 
     START_SCRIPT="$PROJECT_ROOT/backend/services/$service_name/deploy/start.sh"
-    WINDOW_TITLE="[$service_name] Spring Boot"
-    START_CMD="bash '$START_SCRIPT' local"
+    LOG_FILE="$LOG_DIR/$service_name.log"
+    PID_FILE="$PID_DIR/$service_name.pid"
 
-    start_in_new_terminal "$service_name" "$START_CMD" "$WINDOW_TITLE"
+    echo "启动 $service_name..."
+    echo "  JAR文件: $JAR_FILE"
+    echo "  HTTP端口: $http_port"
+    echo "  GRPC端口: $grpc_port"
+    echo "  日志文件: $LOG_FILE"
+    echo "  PID文件: $PID_FILE"
+    echo ""
 
-    sleep 5
-
-    if lsof -Pi :"$http_port" -sTCP:LISTEN -t >/dev/null 2>&1; then
-        echo "✓ $service_name 启动成功！(端口: $http_port)"
+    if [ "$FOREGROUND" = "true" ]; then
+        bash "$START_SCRIPT" local
     else
-        echo "⚠ $service_name 正在启动中，请查看对应终端..."
+        nohup bash "$START_SCRIPT" local > "$LOG_FILE" 2>&1 &
+        local pid=$!
+        echo $pid > "$PID_FILE"
+        sleep 5
+
+        if lsof -Pi :"$http_port" -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "✓ $service_name 启动成功！(PID: $pid, 端口: $http_port)"
+        else
+            echo "⚠ $service_name 正在启动中，请查看日志: $LOG_FILE"
+        fi
     fi
 
     echo ""
@@ -191,12 +202,18 @@ start_backend_service() {
 
 start_frontend_app() {
     local app_name="$1"
-    local index="$2"
-    local total="$3"
+    local port="$2"
+    local index="$3"
+    local total="$4"
 
     echo "========================================"
     echo "  [$index/$total] 启动 $app_name"
     echo "========================================"
+
+    if ! check_port "$port"; then
+        echo "警告: 端口 $port 已被占用，跳过 $app_name 启动"
+        return 1
+    fi
 
     cd "$PROJECT_ROOT/frontend/apps/$app_name"
 
@@ -206,13 +223,30 @@ start_frontend_app() {
     fi
 
     START_SCRIPT="$PROJECT_ROOT/frontend/apps/$app_name/deploy/start.sh"
-    WINDOW_TITLE="[$app_name] React"
-    START_CMD="cd '$PROJECT_ROOT/frontend/apps/$app_name' && bash '$START_SCRIPT' local"
+    LOG_FILE="$LOG_DIR/$app_name.log"
+    PID_FILE="$PID_DIR/$app_name.pid"
 
-    start_in_new_terminal "$app_name" "$START_CMD" "$WINDOW_TITLE"
+    echo "启动 $app_name..."
+    echo "  端口: $port"
+    echo "  日志文件: $LOG_FILE"
+    echo "  PID文件: $PID_FILE"
+    echo ""
 
-    sleep 3
-    echo "✓ $app_name 已启动，请查看对应终端..."
+    if [ "$FOREGROUND" = "true" ]; then
+        bash "$START_SCRIPT" local
+    else
+        nohup bash "$START_SCRIPT" local > "$LOG_FILE" 2>&1 &
+        local pid=$!
+        echo $pid > "$PID_FILE"
+        sleep 5
+
+        if lsof -Pi :"$port" -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "✓ $app_name 启动成功！(PID: $pid, 端口: $port)"
+        else
+            echo "⚠ $app_name 正在启动中，请查看日志: $LOG_FILE"
+        fi
+    fi
+
     echo ""
 }
 
@@ -223,16 +257,16 @@ start_service() {
             start_apisix
             ;;
         user-server)
-            start_backend_service "user-server" "8081" "9091" "2" "5"
+            start_backend_service "user-server" "8082" "9092" "2" "5"
             ;;
         sso-server)
-            start_backend_service "sso-server" "8080" "9090" "3" "5"
+            start_backend_service "sso-server" "8081" "9091" "3" "5"
             ;;
         sso-web)
-            start_frontend_app "sso-web" "4" "5"
+            start_frontend_app "sso-web" "3001" "4" "5"
             ;;
         user-web)
-            start_frontend_app "user-web" "5" "5"
+            start_frontend_app "user-web" "3002" "5" "5"
             ;;
     esac
 }
@@ -254,14 +288,14 @@ show_status() {
 
     echo ""
     echo "后端服务:"
-    if lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        echo "  ✅ user-server - 端口: 8081"
+    if lsof -Pi :8082 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo "  ✅ user-server - 端口: 8082"
     else
         echo "  ❌ user-server - 未运行"
     fi
 
-    if lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        echo "  ✅ sso-server - 端口: 8080"
+    if lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo "  ✅ sso-server - 端口: 8081"
     else
         echo "  ❌ sso-server - 未运行"
     fi
@@ -294,7 +328,7 @@ show_status() {
 }
 
 show_help() {
-    echo "用法: $0 [操作] [模块]"
+    echo "用法: $0 [操作] [模块] [前台模式]"
     echo ""
     echo "操作:"
     echo "  start     启动服务（默认）"
@@ -313,8 +347,13 @@ show_help() {
     echo "  sso-web      仅启动 sso-web"
     echo "  user-web     仅启动 user-web"
     echo ""
+    echo "前台模式:"
+    echo "  true   前台启动（默认，最后一个服务占据前台）"
+    echo "  false  后台启动（所有服务后台运行，日志写入文件）"
+    echo ""
     echo "示例:"
-    echo "  $0                          # 启动所有服务（各服务独立终端）"
+    echo "  $0                          # 启动所有服务（前台模式）"
+    echo "  $0 start all false          # 启动所有服务（后台模式）"
     echo "  $0 start apisix             # 仅启动 APISIX 网关"
     echo "  $0 start backend            # 仅启动后端服务"
     echo "  $0 stop                     # 停止所有服务"
@@ -325,8 +364,7 @@ show_help() {
     echo "  - 后端服务使用 Spring Boot local profile (application-local.yml)"
     echo "  - 前端应用自动加载 .env.local 配置"
     echo "  - 网关使用 Docker，通过 host.docker.internal 代理到本机"
-    echo "  - 每个服务在独立的终端窗口启动，可独立查看日志"
-    echo "  - 网关服务后台运行，其他服务在独立终端前台运行"
+    echo "  - 后台模式日志路径: logs/local/"
     echo ""
 }
 
@@ -335,41 +373,54 @@ if [ "$ACTION" = "help" ] || [ "$ACTION" = "--help" ] || [ "$ACTION" = "-h" ]; t
     exit 0
 fi
 
-mkdir -p "$PROJECT_ROOT/.pid" "$PROJECT_ROOT/logs/local"
+mkdir -p "$PID_DIR" "$LOG_DIR"
 
 case "$ACTION" in
     start)
         case "$MODULE" in
             all)
-                echo "将按顺序启动服务，每个服务在独立终端窗口运行..."
-                echo ""
-                start_apisix
-                start_backend_service "user-server" "8081" "9091" "2" "5"
-                start_backend_service "sso-server" "8080" "9090" "3" "5"
-                start_frontend_app "sso-web" "4" "5"
-                start_frontend_app "user-web" "5" "5"
-                sleep 5
-                show_status
-                echo "========================================"
-                echo "  所有服务启动完成！"
-                echo "========================================"
-                echo ""
-                echo "请查看各终端窗口查看服务日志。"
-                echo ""
+                if [ "$FOREGROUND" = "true" ]; then
+                    echo "将按顺序启动服务，最后一个服务占据前台..."
+                    echo "使用 Ctrl+C 停止当前前台服务"
+                    echo "如需后台启动，请使用: $0 start all false"
+                    echo ""
+                    start_apisix
+                    start_backend_service "user-server" "8082" "9092" "2" "5"
+                    start_backend_service "sso-server" "8081" "9091" "3" "5"
+                    start_frontend_app "sso-web" "3001" "4" "5"
+                    start_frontend_app "user-web" "3002" "5" "5"
+                else
+                    echo "将按顺序启动所有服务，全部后台运行..."
+                    echo "日志文件路径: $LOG_DIR/"
+                    echo ""
+                    start_apisix
+                    start_backend_service "user-server" "8082" "9092" "2" "5"
+                    start_backend_service "sso-server" "8081" "9091" "3" "5"
+                    start_frontend_app "sso-web" "3001" "4" "5"
+                    start_frontend_app "user-web" "3002" "5" "5"
+                    sleep 5
+                    show_status
+                    echo "========================================"
+                    echo "  所有服务启动完成！"
+                    echo "========================================"
+                    echo ""
+                    echo "查看日志: tail -f $LOG_DIR/*.log"
+                    echo ""
+                fi
                 ;;
             apisix)
                 start_apisix
                 show_status
                 ;;
             backend)
-                start_backend_service "user-server" "8081" "9091" "1" "2"
-                start_backend_service "sso-server" "8080" "9090" "2" "2"
+                start_backend_service "user-server" "8082" "9092" "1" "2"
+            start_backend_service "sso-server" "8081" "9091" "2" "2"
                 sleep 5
                 show_status
                 ;;
             frontend)
-                start_frontend_app "sso-web" "1" "2"
-                start_frontend_app "user-web" "2" "2"
+                start_frontend_app "sso-web" "3001" "1" "2"
+                start_frontend_app "user-web" "3002" "2" "2"
                 sleep 3
                 show_status
                 ;;
@@ -398,10 +449,10 @@ case "$ACTION" in
         case "$MODULE" in
             all)
                 start_apisix
-                start_backend_service "user-server" "8081" "9091" "2" "5"
-                start_backend_service "sso-server" "8080" "9090" "3" "5"
-                start_frontend_app "sso-web" "4" "5"
-                start_frontend_app "user-web" "5" "5"
+                start_backend_service "user-server" "8082" "9092" "2" "5"
+                start_backend_service "sso-server" "8081" "9091" "3" "5"
+                start_frontend_app "sso-web" "3001" "4" "5"
+                start_frontend_app "user-web" "3002" "5" "5"
                 ;;
             *)
                 start_service "$MODULE"
