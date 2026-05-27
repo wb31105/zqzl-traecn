@@ -12,6 +12,8 @@
 | [业务流程说明](docs/BUSINESS_FLOW.md) | 登录、注册、用户管理等业务流程图 |
 | [部署指南](docs/DEPLOYMENT.md) | 本地开发、Docker 部署步骤 |
 | [API 接口文档](docs/API.md) | REST API 接口详细说明 |
+| [项目问题分析与整改建议](docs/PROJECT_ISSUES_ANALYSIS.md) | 当前项目全部问题、根因分析、整改方案 |
+| [SSO认证体系历史问题分析](docs/SSO_ISSUE_ANALYSIS.md) | SSO认证体系改造前问题记录（历史文档） |
 
 ---
 
