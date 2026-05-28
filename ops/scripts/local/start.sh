@@ -46,8 +46,9 @@ get_pid_by_port() {
 
 stop_apisix() {
     echo "停止 APISIX 网关..."
-    if docker ps -q -f name="zqzl-apisix-local" >/dev/null 2>&1; then
-        docker compose -f docker-compose-local.yml down 2>/dev/null || true
+    load_gateway_env "$ENV_FILE"
+    if docker ps -q -f name="${COMPOSE_PROJECT_NAME}-apisix-local" >/dev/null 2>&1; then
+        docker compose --env-file "$ENV_FILE" -f docker-compose-local.yml down 2>/dev/null || true
     fi
 }
 

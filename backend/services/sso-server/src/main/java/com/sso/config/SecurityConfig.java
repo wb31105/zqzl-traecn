@@ -11,7 +11,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
-import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -40,11 +40,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http, RequestCache requestCache) throws Exception {
         http
             .authenticationProvider(grpcAuthenticationProvider)
             .cors().and()
             .csrf().disable()
+            .requestCache()
+                .requestCache(requestCache)
+                .and()
             .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 .and()
@@ -55,7 +58,7 @@ public class SecurityConfig {
             .formLogin()
                 .loginPage(ssoLoginUrl)
                 .loginProcessingUrl("/v1/auth/login")
-                .successHandler(jsonAuthenticationSuccessHandler())
+                .successHandler(jsonAuthenticationSuccessHandler(requestCache))
                 .failureHandler(jsonAuthenticationFailureHandler())
                 .permitAll()
                 .and()
@@ -70,9 +73,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationSuccessHandler jsonAuthenticationSuccessHandler() {
+    public AuthenticationSuccessHandler jsonAuthenticationSuccessHandler(RequestCache requestCache) {
         return (request, response, authentication) -> {
-            SavedRequest savedRequest = new HttpSessionRequestCache().getRequest(request, response);
+            SavedRequest savedRequest = requestCache.getRequest(request, response);
             String redirectUrl = "/";
             if (savedRequest != null) {
                 redirectUrl = savedRequest.getRedirectUrl();

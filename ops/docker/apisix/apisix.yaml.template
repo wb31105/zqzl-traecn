@@ -71,6 +71,24 @@ routes:
       nodes:
         "${USER_SERVER_UPSTREAM}": 1
 
+  - id: admin-user-oauth2-route
+    uri: /v1/oauth2/*
+    priority: 98
+    host: ${ADMIN_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${USER_SERVER_UPSTREAM}": 1
+
+  - id: admin-user-server-route
+    uri: /v1/users/*
+    priority: 97
+    host: ${ADMIN_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${USER_SERVER_UPSTREAM}": 1
+
   - id: api-user-server-route
     uri: /v1/users/*
     priority: 98

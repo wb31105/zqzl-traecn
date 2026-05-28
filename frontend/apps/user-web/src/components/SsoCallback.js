@@ -26,21 +26,9 @@ const SsoCallback = () => {
         : errorParam;
       
       if (errorParam === 'invalid_scope' || errorParam === 'access_denied') {
-        setError('认证配置错误，正在重新跳转登录...');
+        setError('认证配置错误，正在跳转登录页...');
         setTimeout(() => {
-          const storedState = localStorage.getItem('oauth_state');
-          const newState = Math.random().toString(36).substring(2, 15);
-          localStorage.setItem('oauth_state', newState);
-          
-          const oauthParams = new URLSearchParams({
-            response_type: 'code',
-            client_id: getEnv('REACT_APP_OAUTH2_CLIENT_ID'),
-            redirect_uri: getEnv('REACT_APP_OAUTH2_REDIRECT_URI'),
-            scope: getEnv('REACT_APP_OAUTH2_SCOPE'),
-            state: newState
-          });
-          
-          window.location.href = `${SSO_SERVER_URL}/oauth2/authorize?${oauthParams.toString()}`;
+          window.location.href = `${SSO_SERVER_URL}/login`;
         }, 2000);
       } else if (errorParam === 'unauthorized') {
         setError('您没有访问权限');
@@ -63,10 +51,21 @@ const SsoCallback = () => {
       return;
     }
 
-    exchangeToken(code, state);
+    const storedState = localStorage.getItem('oauth_state');
+    if (!state || state !== storedState) {
+      setError('State参数验证失败，可能是CSRF攻击');
+      setLoading(false);
+      setTimeout(() => {
+        window.location.href = `${SSO_SERVER_URL}/login`;
+      }, 2000);
+      return;
+    }
+    localStorage.removeItem('oauth_state');
+
+    exchangeToken(code);
   }, [location.search]);
 
-  const exchangeToken = async (code, state) => {
+  const exchangeToken = async (code) => {
     try {
       const response = await axios.post('/v1/oauth2/token', {
         code: code

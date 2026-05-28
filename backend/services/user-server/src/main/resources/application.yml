@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT}
+  port: ${SERVER_PORT:8080}
 
 spring:
   autoconfigure:
@@ -8,7 +8,7 @@ spring:
   application:
     name: user-server
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE}
+    active: ${SPRING_PROFILES_ACTIVE:prod}
   datasource:
     url: jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -29,15 +29,15 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${SSO_ISSUER_URI}
-          jwk-set-uri: ${SSO_JWK_SET_URI}
+          issuer-uri: ${SSO_ISSUER_URI:http://localhost:8080}
+          jwk-set-uri: ${SSO_JWK_SET_URI:http://localhost:8080/oauth2/jwks}
 
 grpc:
   server:
-    port: ${GRPC_SERVER_PORT}
+    port: ${GRPC_SERVER_PORT:9091}
   client:
     sso-server:
-      address: static://${SSO_GRPC_HOST}:${SSO_GRPC_PORT}
+      address: static://${SSO_GRPC_HOST:localhost}:${SSO_GRPC_PORT:9090}
       enableKeepAlive: true
       keepAliveWithoutCalls: true
       negotiationType: plaintext
@@ -46,10 +46,10 @@ sso:
   oauth2:
     client-id: user-web-client
     client-secret: user-web-secret-123
-    token-uri: ${SSO_TOKEN_URI}
-    authorization-uri: ${SSO_AUTHORIZATION_URI}
-    redirect-uri: ${SSO_REDIRECT_URI}
-    scope: ${SSO_OAUTH2_SCOPE}
+    token-uri: ${SSO_TOKEN_URI:http://localhost:8080/oauth2/token}
+    authorization-uri: ${SSO_AUTHORIZATION_URI:http://localhost:8080/oauth2/authorize}
+    redirect-uri: ${SSO_REDIRECT_URI:http://localhost:3002/oauth2/callback}
+    scope: ${SSO_OAUTH2_SCOPE:profile read write}
 
 user:
   jwt:

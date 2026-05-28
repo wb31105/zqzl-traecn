@@ -9,30 +9,6 @@ const getEnv = (key) => {
   return (window.__ENV__ && window.__ENV__[key]) || process.env[key];
 };
 
-axios.interceptors.request.use(
-  (config) => {
-    const accessToken = localStorage.getItem('access_token');
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-axios.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      localStorage.clear();
-      redirectToSSO();
-    }
-    return Promise.reject(error);
-  }
-);
-
 const OAUTH2_CONFIG = {
   authorizationUri: getEnv('REACT_APP_OAUTH2_AUTH_URI'),
   clientId: getEnv('REACT_APP_OAUTH2_CLIENT_ID'),
@@ -41,7 +17,15 @@ const OAUTH2_CONFIG = {
   responseType: 'code'
 };
 
+const isCallbackPage = () => {
+  return window.location.pathname === '/oauth2/callback';
+};
+
 const redirectToSSO = () => {
+  if (isCallbackPage()) {
+    return;
+  }
+
   const originalPath = window.location.pathname;
   localStorage.setItem('originalPath', originalPath);
 
@@ -59,6 +43,30 @@ const redirectToSSO = () => {
   window.location.href = `${OAUTH2_CONFIG.authorizationUri}?${params.toString()}`;
 };
 
+axios.interceptors.request.use(
+  (config) => {
+    const accessToken = localStorage.getItem('access_token');
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401 && !isCallbackPage()) {
+      localStorage.clear();
+      redirectToSSO();
+    }
+    return Promise.reject(error);
+  }
+);
+
 const isTokenValid = () => {
   const accessToken = localStorage.getItem('access_token');
   const loginTime = localStorage.getItem('login_time');
@@ -74,12 +82,12 @@ const isTokenValid = () => {
 
 const ProtectedRoute = () => {
   useEffect(() => {
-    if (!isTokenValid()) {
+    if (!isCallbackPage() && !isTokenValid()) {
       redirectToSSO();
     }
   }, []);
 
-  if (!isTokenValid()) {
+  if (!isCallbackPage() && !isTokenValid()) {
     return null;
   }
   

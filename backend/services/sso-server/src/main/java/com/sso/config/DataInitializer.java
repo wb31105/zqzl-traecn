@@ -29,7 +29,7 @@ public class DataInitializer implements CommandLineRunner {
             userWebClient.setClientSecret(passwordEncoder.encode("user-web-secret-123"));
             userWebClient.setClientName("用户管理系统");
             userWebClient.setRedirectUri(userWebRedirectUri);
-            userWebClient.setScope("openid profile read write");
+            userWebClient.setScope("profile read write");
             userWebClient.setRequireConsent(false);
             userWebClient.setEnabled(true);
             clientRepository.save(userWebClient);

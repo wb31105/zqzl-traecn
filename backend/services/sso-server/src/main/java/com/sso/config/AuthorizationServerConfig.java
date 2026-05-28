@@ -2,6 +2,7 @@ package com.sso.config;
 
 import com.sso.entity.Client;
 import com.sso.repository.ClientRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,8 @@ import org.springframework.security.oauth2.server.authorization.settings.ClientS
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.RequestCache;
 
 import java.time.Duration;
 
@@ -35,12 +38,21 @@ public class AuthorizationServerConfig {
     private String ssoLoginUrl;
 
     @Bean
+    public RequestCache requestCache() {
+        return new HttpSessionRequestCache();
+    }
+
+    @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http, RequestCache requestCache) throws Exception {
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-        http.exceptionHandling(exceptions ->
+        http
+            .requestCache()
+                .requestCache(requestCache)
+                .and()
+            .exceptionHandling(exceptions ->
                 exceptions.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint(ssoLoginUrl))
-        );
+            );
         return http.build();
     }
 
@@ -66,7 +78,7 @@ public class AuthorizationServerConfig {
                 String scopeStr = client.getScope();
                 if (scopeStr != null && !scopeStr.isEmpty()) {
                     for (String scope : scopeStr.split("[,\\s]+")) {
-                        if (!scope.isEmpty()) {
+                        if (!scope.isEmpty() && !"openid".equals(scope)) {
                             builder.scope(scope);
                         }
                     }
@@ -115,7 +127,6 @@ public class AuthorizationServerConfig {
                 .tokenIntrospectionEndpoint("/oauth2/introspect")
                 .tokenRevocationEndpoint("/oauth2/revoke")
                 .jwkSetEndpoint("/oauth2/jwks")
-                .oidcUserInfoEndpoint("/userinfo")
                 .build();
     }
 

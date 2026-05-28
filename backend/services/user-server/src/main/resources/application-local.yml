@@ -26,6 +26,8 @@ grpc:
 
 sso:
   oauth2:
+    client-id: user-web-client
+    client-secret: user-web-secret-123
     token-uri: http://sso.local.bw.com:8080/oauth2/token
     authorization-uri: http://sso.local.bw.com:8080/oauth2/authorize
     redirect-uri: http://admin.local.bw.com:8080/oauth2/callback

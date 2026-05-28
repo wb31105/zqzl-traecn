@@ -21,6 +21,7 @@ const Login = ({ onLoginSuccess }) => {
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [continueUrl, setContinueUrl] = useState('');
   const [isOAuth2Flow, setIsOAuth2Flow] = useState(false);
 
@@ -100,10 +101,13 @@ const Login = ({ onLoginSuccess }) => {
 
       if (response.data && response.data.success) {
         const redirectUrl = response.data.redirectUrl;
-        if (redirectUrl && redirectUrl !== '/') {
+        if (redirectUrl && redirectUrl !== '/' && !redirectUrl.startsWith(window.location.origin + '/')) {
           window.location.href = redirectUrl;
+        } else if (isOAuth2Flow && continueUrl) {
+          window.location.href = continueUrl;
         } else {
-          navigate('/');
+          setError('');
+          setSuccessMessage('登录成功');
         }
       } else {
         setError(response.data?.message || '登录失败');
@@ -148,7 +152,9 @@ const Login = ({ onLoginSuccess }) => {
         </div>
         
         {error && <div className="error-message">{error}</div>}
+        {successMessage && <div className="success-message">{successMessage}</div>}
         
+        {!successMessage && (
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
             <label htmlFor="username" className="form-label">
@@ -218,11 +224,14 @@ const Login = ({ onLoginSuccess }) => {
             ) : '登 录'}
           </button>
         </form>
+        )}
         
+        {!successMessage && (
         <div className="auth-links">
           <a href="/forgot-password" className="auth-link">忘记密码？</a>
           <a href="/register" className="auth-link">没有账号？立即注册</a>
         </div>
+        )}
         
         <div className="login-footer">
           <p>© 2024 SSO 统一认证中心</p>
