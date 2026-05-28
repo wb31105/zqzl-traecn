@@ -123,7 +123,7 @@ start_apisix() {
     echo "  - 使用 host.docker.internal 访问宿主机服务"
     echo ""
 
-    docker compose -f docker-compose-local.yml up -d apisix
+    docker compose --env-file "$ENV_FILE" -f docker-compose-local.yml up -d apisix
 
     sleep 3
 

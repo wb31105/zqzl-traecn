@@ -1,11 +1,26 @@
 routes:
+  - id: sso-oauth2-route
+    uri: /oauth2/*
+    priority: 110
+    host: ${SSO_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${SSO_SERVER_UPSTREAM}": 1
+
+  - id: admin-oauth2-route
+    uri: /oauth2/*
+    priority: 109
+    host: ${ADMIN_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${SSO_SERVER_UPSTREAM}": 1
+
   - id: api-sso-server-route
     uri: /v1/auth/*
     priority: 100
     host: ${API_HOST}
-    plugins:
-      proxy-rewrite:
-        regex_uri: ["^/v1/auth/(.*)", "/sso/v1/auth/$1"]
     upstream:
       type: roundrobin
       nodes:

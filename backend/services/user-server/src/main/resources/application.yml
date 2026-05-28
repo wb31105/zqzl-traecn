@@ -52,6 +52,9 @@ sso:
     scope: ${SSO_OAUTH2_SCOPE}
 
 user:
+  jwt:
+    secret: ${USER_JWT_SECRET:my-super-secret-key-for-jwt-token-generation-at-least-256-bits-long}
+    expiration: ${USER_JWT_EXPIRATION:86400000}
   login:
     max-attempts: 3
     captcha-enabled-after: 1
