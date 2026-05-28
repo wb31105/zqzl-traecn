@@ -1,22 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const SSO_SERVER_URL = process.env.REACT_APP_SSO_SERVER_URL;
-const API_BASE_URL = `${SSO_SERVER_URL}/v1/auth`;
+const getEnv = (key) => {
+  return (window.__ENV__ && window.__ENV__[key]) || process.env[key];
+};
 
-/**
- * SSO OAuth2 登录页面（前后端分离）
- * 
- * 流程：
- * 1. 用户被 Spring Security 302 重定向到 /login?continue=/oauth2/authorize?...
- * 2. 前端显示登录表单
- * 3. 提交表单到 /v1/auth/login（Spring Security 处理）
- * 4. 登录成功创建 SSO_SESSION Cookie → 重定向回 /oauth2/authorize
- * 5. Spring Security 生成 code → 回调客户端
- */
+const SSO_SERVER_URL = getEnv('REACT_APP_SSO_SERVER_URL');
+
 const Login = ({ onLoginSuccess }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const formRef = useRef(null);
   
   const [username, setUsername] = useState('');
@@ -34,6 +28,7 @@ const Login = ({ onLoginSuccess }) => {
     const params = new URLSearchParams(location.search);
     const continueParam = params.get('continue');
     const logoutParam = params.get('logout');
+    const errorParam = params.get('error');
     
     if (continueParam) {
       setContinueUrl(continueParam);
@@ -43,11 +38,15 @@ const Login = ({ onLoginSuccess }) => {
     if (logoutParam) {
       setError('您已成功退出登录');
     }
+
+    if (errorParam) {
+      setError('登录已过期，请重新登录');
+    }
   }, [location.search]);
 
   const fetchCaptcha = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/captcha`, { withCredentials: true });
+      const response = await axios.get('/v1/auth/captcha', { withCredentials: true });
       setCaptchaKey(response.data.captchaKey);
       setCaptchaImage(response.data.captchaImage);
     } catch (err) {
@@ -58,7 +57,7 @@ const Login = ({ onLoginSuccess }) => {
   const checkCaptchaRequirement = async (user) => {
     if (!user) return;
     try {
-      const response = await axios.get(`${API_BASE_URL}/check-captcha`, {
+      const response = await axios.get('/v1/auth/check-captcha', {
         params: { username: user },
         withCredentials: true
       });
@@ -86,37 +85,32 @@ const Login = ({ onLoginSuccess }) => {
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('username', username);
-      formData.append('password', password);
+      const params = new URLSearchParams();
+      params.append('username', username);
+      params.append('password', password);
       if (showCaptcha) {
-        formData.append('captcha', captcha);
-        formData.append('captchaKey', captchaKey);
+        params.append('captcha', captcha);
+        params.append('captchaKey', captchaKey);
       }
 
-      const response = await axios.post(`${SSO_SERVER_URL}/login`, formData, {
+      const response = await axios.post('/v1/auth/login', params, {
         withCredentials: true,
-        maxRedirects: 0,
-        validateStatus: (status) => status >= 200 && status < 400
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
-      if (isOAuth2Flow && continueUrl) {
-        window.location.href = `${SSO_SERVER_URL}${continueUrl}`;
-      } else if (response.data?.success) {
-        onLoginSuccess({ username });
+      if (response.data && response.data.success) {
+        const redirectUrl = response.data.redirectUrl;
+        if (redirectUrl && redirectUrl !== '/') {
+          window.location.href = redirectUrl;
+        } else {
+          navigate('/');
+        }
       } else {
-        setError('登录成功');
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 500);
+        setError(response.data?.message || '登录失败');
       }
     } catch (err) {
-      if (err.response?.status === 302 || err.response?.status === 200) {
-        if (isOAuth2Flow && continueUrl) {
-          window.location.href = `${SSO_SERVER_URL}${continueUrl}`;
-        } else {
-          window.location.href = '/';
-        }
+      if (err.response?.status === 401) {
+        setError(err.response?.data?.message || '用户名或密码错误');
       } else if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else {
@@ -138,67 +132,101 @@ const Login = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="login-container">
-      <h1 className="login-title">SSO 单点登录</h1>
-      
-      {error && <div className="error-message">{error}</div>}
-      
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="username">用户名</label>
-          <input
-            type="text"
-            id="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="请输入用户名"
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="password">密码</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="请输入密码"
-            required
-          />
-        </div>
-        
-        {showCaptcha && (
-          <div className="form-group">
-            <label htmlFor="captcha">验证码</label>
-            <div className="captcha-group">
-              <input
-                type="text"
-                id="captcha"
-                value={captcha}
-                onChange={(e) => setCaptcha(e.target.value)}
-                placeholder="请输入验证码"
-                required
-              />
-              <img
-                src={captchaImage}
-                alt="验证码"
-                className="captcha-image"
-                onClick={refreshCaptcha}
-                title="点击刷新验证码"
-              />
-            </div>
+    <div className="login-page-wrapper">
+      <div className="login-background">
+        <div className="login-bg-shape shape-1"></div>
+        <div className="login-bg-shape shape-2"></div>
+        <div className="login-bg-shape shape-3"></div>
+      </div>
+      <div className="login-container">
+        <div className="login-header">
+          <div className="login-logo">
+            <span className="logo-icon">🔐</span>
           </div>
-        )}
+          <h1 className="login-title">欢迎登录</h1>
+          <p className="login-subtitle">SSO 统一认证中心</p>
+        </div>
         
-        <button type="submit" className="login-button" disabled={loading}>
-          {loading ? '登录中...' : '登录'}
-        </button>
-      </form>
-      
-      <div className="auth-links">
-        <a href="/forgot-password">忘记密码？</a>
-        <a href="/register">没有账号？立即注册</a>
+        {error && <div className="error-message">{error}</div>}
+        
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
+            <label htmlFor="username" className="form-label">
+              <span className="label-icon">👤</span>
+              用户名
+            </label>
+            <input
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="请输入用户名"
+              required
+              className="form-input"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="password" className="form-label">
+              <span className="label-icon">🔒</span>
+              密码
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="请输入密码"
+              required
+              className="form-input"
+            />
+          </div>
+          
+          {showCaptcha && (
+            <div className="form-group">
+              <label htmlFor="captcha" className="form-label">
+                <span className="label-icon">🔤</span>
+                验证码
+              </label>
+              <div className="captcha-group">
+                <input
+                  type="text"
+                  id="captcha"
+                  value={captcha}
+                  onChange={(e) => setCaptcha(e.target.value)}
+                  placeholder="请输入验证码"
+                  required
+                  className="form-input captcha-input"
+                />
+                <img
+                  src={captchaImage}
+                  alt="验证码"
+                  className="captcha-image"
+                  onClick={refreshCaptcha}
+                  title="点击刷新验证码"
+                />
+              </div>
+            </div>
+          )}
+          
+          <button type="submit" className="login-button" disabled={loading}>
+            {loading ? (
+              <span className="button-content">
+                <span className="button-spinner"></span>
+                登录中...
+              </span>
+            ) : '登 录'}
+          </button>
+        </form>
+        
+        <div className="auth-links">
+          <a href="/forgot-password" className="auth-link">忘记密码？</a>
+          <a href="/register" className="auth-link">没有账号？立即注册</a>
+        </div>
+        
+        <div className="login-footer">
+          <p>© 2024 SSO 统一认证中心</p>
+        </div>
       </div>
     </div>
   );

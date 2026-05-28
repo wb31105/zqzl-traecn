@@ -1,13 +1,13 @@
 package com.sso.service;
 
 import com.sso.client.UserServiceClient;
+import com.sso.dto.LoginRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -19,9 +19,6 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Autowired
     private UserServiceClient userServiceClient;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Map<String, Object> userInfo = userServiceClient.findUserByIdentifier(username);
@@ -32,6 +29,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         String dbUsername = (String) userInfo.get("username");
         String dbPassword = (String) userInfo.get("password");
+        
+        if (dbPassword == null) {
+            throw new UsernameNotFoundException("用户数据不完整，请联系管理员: " + username);
+        }
 
         return new User(
                 dbUsername,

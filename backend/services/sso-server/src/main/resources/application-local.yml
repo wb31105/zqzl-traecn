@@ -28,10 +28,10 @@ sso:
   oauth2:
     issuer-uri: http://sso.local.bw.com:8080
   web:
-    login-url: http://sso.local.bw.com:3001/login
-    logout-success-url: http://sso.local.bw.com:3001/login
+    login-url: http://sso.local.bw.com:8080/login
+    logout-success-url: http://sso.local.bw.com:8080/login
   client:
-    user-web-redirect-uri: http://admin.local.bw.com:3002/oauth2/callback
+    user-web-redirect-uri: http://admin.local.bw.com:8080/oauth2/callback
   ticket:
     expiration: 86400000
 

@@ -1,38 +1,33 @@
 package com.sso.config;
 
-import com.sso.service.CustomUserDetailsService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * SSO 认证安全配置（前后端分离架构）
- * 
- * 登录流程：
- * 1. 未登录访问 /oauth2/authorize → 302 重定向到前端登录页 ${sso.web.login-url}
- * 2. 前端显示登录表单 → 调用 POST /v1/auth/login
- * 3. 登录成功 → 创建 SSO_SESSION Cookie → 跳转回 /oauth2/authorize
- * 4. 生成 code → 回调客户端
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final CustomUserDetailsService userDetailsService;
-    private final PasswordEncoder passwordEncoder;
+    private final GrpcAuthenticationProvider grpcAuthenticationProvider;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${sso.web.login-url}")
     private String ssoLoginUrl;
@@ -40,14 +35,14 @@ public class SecurityConfig {
     @Value("${sso.web.logout-success-url}")
     private String logoutSuccessUrl;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
-        this.userDetailsService = userDetailsService;
-        this.passwordEncoder = passwordEncoder;
+    public SecurityConfig(GrpcAuthenticationProvider grpcAuthenticationProvider) {
+        this.grpcAuthenticationProvider = grpcAuthenticationProvider;
     }
 
     @Bean
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http
+            .authenticationProvider(grpcAuthenticationProvider)
             .cors().and()
             .csrf().disable()
             .sessionManagement()
@@ -58,14 +53,15 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
                 .and()
             .formLogin()
-                .loginPage(ssoLoginUrl)  // 未登录重定向到前端登录页
-                .loginProcessingUrl("/v1/auth/login")  // 登录表单提交地址
-                .defaultSuccessUrl("/oauth2/authorize", true)
+                .loginPage(ssoLoginUrl)
+                .loginProcessingUrl("/v1/auth/login")
+                .successHandler(jsonAuthenticationSuccessHandler())
+                .failureHandler(jsonAuthenticationFailureHandler())
                 .permitAll()
                 .and()
             .logout()
                 .logoutUrl("/logout")
-                .logoutSuccessUrl(logoutSuccessUrl)  // 登出成功跳转前端
+                .logoutSuccessUrl(logoutSuccessUrl)
                 .invalidateHttpSession(true)
                 .deleteCookies("SSO_SESSION")
                 .permitAll();
@@ -74,16 +70,47 @@ public class SecurityConfig {
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder);
-        return authProvider;
+    public AuthenticationSuccessHandler jsonAuthenticationSuccessHandler() {
+        return (request, response, authentication) -> {
+            SavedRequest savedRequest = new HttpSessionRequestCache().getRequest(request, response);
+            String redirectUrl = "/";
+            if (savedRequest != null) {
+                redirectUrl = savedRequest.getRedirectUrl();
+            }
+
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            response.setStatus(HttpServletResponse.SC_OK);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "登录成功");
+            result.put("redirectUrl", redirectUrl);
+            response.getWriter().write(objectMapper.writeValueAsString(result));
+        };
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
+    public SimpleUrlAuthenticationFailureHandler jsonAuthenticationFailureHandler() {
+        return new SimpleUrlAuthenticationFailureHandler() {
+            @Override
+            public void onAuthenticationFailure(javax.servlet.http.HttpServletRequest request,
+                                                javax.servlet.http.HttpServletResponse response,
+                                                org.springframework.security.core.AuthenticationException exception) {
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding("UTF-8");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", false);
+                result.put("message", exception.getMessage() != null ? exception.getMessage() : "用户名或密码错误");
+                try {
+                    response.getWriter().write(objectMapper.writeValueAsString(result));
+                } catch (java.io.IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
     }
 
     @Bean

@@ -38,7 +38,9 @@ function ForgotPassword() {
 
   const loadCaptcha = async () => {
     try {
-      const response = await axios.get('/v1/auth/captcha');
+      const response = await axios.get('/v1/auth/captcha', {
+        withCredentials: true
+      });
       setCaptchaImage(response.data.captchaImage);
       setFormData(prev => ({ ...prev, captchaKey: response.data.captchaKey }));
     } catch (error) {
@@ -60,10 +62,12 @@ function ForgotPassword() {
     }
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_DOMAIN}/v1/auth/forgot-password/verify`, {
+      const response = await axios.post('/v1/auth/forgot-password/verify', {
         identifier: formData.identifier,
         captcha: formData.captcha,
         captchaKey: formData.captchaKey
+      }, {
+        withCredentials: true
       });
       
       if (response.data.success) {
@@ -88,6 +92,8 @@ function ForgotPassword() {
         email: selectedContact === 'email' ? userEmail : null,
         phone: selectedContact === 'phone' ? userPhone : null,
         type: 'forgot_password'
+      }, {
+        withCredentials: true
       });
       
       if (response.data.success) {
@@ -127,6 +133,8 @@ function ForgotPassword() {
         verificationCode: formData.verificationCode,
         verifyToken: verifyToken,
         selectedContact: selectedContact
+      }, {
+        withCredentials: true
       });
       
       if (response.data.success) {
@@ -302,7 +310,7 @@ function ForgotPassword() {
         )}
         
         <div className="auth-links">
-          <a href="/">返回登录</a>
+          <a href="/login">返回登录</a>
           <a href="/register">没有账号？立即注册</a>
         </div>
       </div>

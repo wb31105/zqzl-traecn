@@ -1,4 +1,22 @@
 routes:
+  - id: sso-oauth2-callback-route
+    uri: /oauth2/callback
+    priority: 120
+    host: ${SSO_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${SSO_WEB_UPSTREAM}": 1
+
+  - id: sso-auth-api-route
+    uri: /v1/auth/*
+    priority: 115
+    host: ${SSO_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${SSO_SERVER_UPSTREAM}": 1
+
   - id: sso-oauth2-route
     uri: /oauth2/*
     priority: 110
@@ -7,6 +25,15 @@ routes:
       type: roundrobin
       nodes:
         "${SSO_SERVER_UPSTREAM}": 1
+
+  - id: admin-oauth2-callback-route
+    uri: /oauth2/callback
+    priority: 119
+    host: ${ADMIN_WEB_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${USER_WEB_UPSTREAM}": 1
 
   - id: admin-oauth2-route
     uri: /oauth2/*
@@ -34,6 +61,15 @@ routes:
       type: roundrobin
       nodes:
         "${SSO_SERVER_UPSTREAM}": 1
+
+  - id: api-user-oauth2-route
+    uri: /v1/oauth2/*
+    priority: 99
+    host: ${API_HOST}
+    upstream:
+      type: roundrobin
+      nodes:
+        "${USER_SERVER_UPSTREAM}": 1
 
   - id: api-user-server-route
     uri: /v1/users/*

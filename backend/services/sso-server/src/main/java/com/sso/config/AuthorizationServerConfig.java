@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.server.authorization.settings.Authori
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 
 import java.time.Duration;
 
@@ -30,10 +31,16 @@ public class AuthorizationServerConfig {
     @Value("${sso.oauth2.issuer-uri}")
     private String issuerUri;
 
+    @Value("${sso.web.login-url}")
+    private String ssoLoginUrl;
+
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+        http.exceptionHandling(exceptions ->
+                exceptions.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint(ssoLoginUrl))
+        );
         return http.build();
     }
 
@@ -46,7 +53,7 @@ public class AuthorizationServerConfig {
                 if (client == null) {
                     return null;
                 }
-                return RegisteredClient.withId(client.getId().toString())
+                RegisteredClient.Builder builder = RegisteredClient.withId(client.getId().toString())
                         .clientId(client.getClientId())
                         .clientSecret(client.getClientSecret())
                         .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -54,8 +61,18 @@ public class AuthorizationServerConfig {
                         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                         .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                         .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                        .redirectUri(client.getRedirectUri())
-                        .scope(client.getScope())
+                        .redirectUri(client.getRedirectUri());
+
+                String scopeStr = client.getScope();
+                if (scopeStr != null && !scopeStr.isEmpty()) {
+                    for (String scope : scopeStr.split("[,\\s]+")) {
+                        if (!scope.isEmpty()) {
+                            builder.scope(scope);
+                        }
+                    }
+                }
+
+                return builder
                         .clientSettings(ClientSettings.builder()
                                 .requireAuthorizationConsent(client.isRequireConsent())
                                 .build())

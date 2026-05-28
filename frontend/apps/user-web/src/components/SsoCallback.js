@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 
+const getEnv = (key) => {
+  return (window.__ENV__ && window.__ENV__[key]) || process.env[key];
+};
+
+const SSO_SERVER_URL = getEnv('REACT_APP_SSO_SERVER_URL');
+
 const SsoCallback = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -10,7 +16,46 @@ const SsoCallback = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
+    const errorParam = params.get('error');
+    const errorDescription = params.get('error_description');
     const state = params.get('state');
+
+    if (errorParam) {
+      const errorMsg = errorDescription 
+        ? decodeURIComponent(errorDescription).split('Parameter:').pop()?.trim() || errorParam
+        : errorParam;
+      
+      if (errorParam === 'invalid_scope' || errorParam === 'access_denied') {
+        setError('认证配置错误，正在重新跳转登录...');
+        setTimeout(() => {
+          const storedState = localStorage.getItem('oauth_state');
+          const newState = Math.random().toString(36).substring(2, 15);
+          localStorage.setItem('oauth_state', newState);
+          
+          const oauthParams = new URLSearchParams({
+            response_type: 'code',
+            client_id: getEnv('REACT_APP_OAUTH2_CLIENT_ID'),
+            redirect_uri: getEnv('REACT_APP_OAUTH2_REDIRECT_URI'),
+            scope: getEnv('REACT_APP_OAUTH2_SCOPE'),
+            state: newState
+          });
+          
+          window.location.href = `${SSO_SERVER_URL}/oauth2/authorize?${oauthParams.toString()}`;
+        }, 2000);
+      } else if (errorParam === 'unauthorized') {
+        setError('您没有访问权限');
+        setTimeout(() => {
+          window.location.href = `${SSO_SERVER_URL}/login`;
+        }, 2000);
+      } else {
+        setError(`认证失败: ${errorMsg}`);
+        setTimeout(() => {
+          window.location.href = `${SSO_SERVER_URL}/login`;
+        }, 3000);
+      }
+      setLoading(false);
+      return;
+    }
 
     if (!code) {
       setError('缺少授权码参数');
@@ -42,24 +87,18 @@ const SsoCallback = () => {
       } else {
         setError(response.data.message || '令牌交换失败');
         setTimeout(() => {
-          redirectToLogin();
+          window.location.href = `${SSO_SERVER_URL}/login`;
         }, 2000);
       }
     } catch (err) {
       console.error('令牌交换失败', err);
       setError('登录失败，请重新登录');
       setTimeout(() => {
-        redirectToLogin();
+        window.location.href = `${SSO_SERVER_URL}/login`;
       }, 2000);
     } finally {
       setLoading(false);
     }
-  };
-
-  const redirectToLogin = () => {
-    const originalPath = window.location.pathname;
-    localStorage.setItem('originalPath', originalPath);
-    window.location.href = '/';
   };
 
   if (loading) {
@@ -79,7 +118,7 @@ const SsoCallback = () => {
         <div className="auth-card">
           <h2>登录失败</h2>
           <div className="error-message">{error}</div>
-          <p>2秒后跳转到登录页面...</p>
+          <p>即将跳转到登录页面...</p>
         </div>
       </div>
     );

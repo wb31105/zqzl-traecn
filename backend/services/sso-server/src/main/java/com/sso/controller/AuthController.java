@@ -28,15 +28,7 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
-    /**
-     * @deprecated 推荐使用标准 OAuth2 授权码流程：跳转 /oauth2/authorize
-     */
-    @Deprecated
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
-    }
+
 
     @PostMapping("/forgot-password/verify")
     public ResponseEntity<Map<String, Object>> verifyForgotPassword(@Valid @RequestBody ForgotPasswordVerifyRequest request) {

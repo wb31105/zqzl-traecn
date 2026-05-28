@@ -22,16 +22,21 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (clientRepository.findByClientId("user-web-client") == null) {
+        Client existingClient = clientRepository.findByClientId("user-web-client");
+        if (existingClient == null) {
             Client userWebClient = new Client();
             userWebClient.setClientId("user-web-client");
             userWebClient.setClientSecret(passwordEncoder.encode("user-web-secret-123"));
             userWebClient.setClientName("用户管理系统");
             userWebClient.setRedirectUri(userWebRedirectUri);
-            userWebClient.setScope("openid,profile,read,write");
+            userWebClient.setScope("openid profile read write");
             userWebClient.setRequireConsent(false);
             userWebClient.setEnabled(true);
             clientRepository.save(userWebClient);
+        } else {
+            existingClient.setRedirectUri(userWebRedirectUri);
+            existingClient.setScope("profile read write");
+            clientRepository.save(existingClient);
         }
     }
 }

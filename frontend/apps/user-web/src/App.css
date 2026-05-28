@@ -304,16 +304,17 @@
 
 .navbar {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 15px 40px;
+  padding: 16px 48px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
+  backdrop-filter: blur(10px);
 }
 
 .nav-brand {
@@ -333,29 +334,49 @@
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 6px;
-  transition: background 0.3s;
+  padding: 10px 20px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition: left 0.5s;
+}
+
+.nav-link:hover::before {
+  left: 100%;
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
 }
 
 .logout-button-nav {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 16px;
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 10px 20px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
 }
 
 .logout-button-nav:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .App {
@@ -422,11 +443,23 @@
 
 .user-management-container {
   background: white;
-  padding: 30px;
-  border-radius: 10px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  padding: 32px;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
   max-width: 1400px;
-  margin: 20px auto;
+  margin: 24px auto;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .management-title {
@@ -450,40 +483,70 @@
 .search-input {
   flex: 1;
   max-width: 400px;
-  padding: 10px 15px;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
   font-size: 14px;
-  transition: border-color 0.3s;
+  transition: all 0.2s ease;
+  background: #f9fafb;
 }
 
 .search-input:focus {
   outline: none;
   border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.search-input:hover:not(:focus) {
+  border-color: #d1d5db;
 }
 
 .search-button, .refresh-button {
-  padding: 10px 20px;
+  padding: 12px 24px;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
 }
 
 .search-button {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.search-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.search-button:hover::before {
+  left: 100%;
+}
+
+.search-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
 
 .refresh-button {
-  background: #f0f0f0;
-  color: #333;
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .refresh-button:hover {
-  background: #e0e0e0;
+  background: #e5e7eb;
+  transform: translateY(-1px);
 }
 
 .table-container {
@@ -572,63 +635,73 @@
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
 }
 
 .action-button {
-  padding: 5px 10px;
+  padding: 6px 12px;
   border: none;
-  border-radius: 4px;
-  font-size: 11px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
+.action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.action-button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
 .edit-button {
-  background: #2196f3;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
 }
 
 .edit-button:hover {
-  background: #1976d2;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 
 .disable-button {
-  background: #ff9800;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: white;
 }
 
 .disable-button:hover {
-  background: #f57c00;
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
 }
 
 .enable-button {
-  background: #4caf50;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
 }
 
 .enable-button:hover {
-  background: #388e3c;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
 }
 
 .reset-password-button {
-  background: #9c27b0;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   color: white;
 }
 
 .reset-password-button:hover {
-  background: #7b1fa2;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
 }
 
 .delete-button {
-  background: #f44336;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
 }
 
 .delete-button:hover {
-  background: #d32f2f;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
 }
 
 .pagination-bar {
@@ -748,36 +821,56 @@
 }
 
 .cancel-button, .save-button {
-  padding: 12px 30px;
+  padding: 12px 32px;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
 }
 
 .cancel-button {
-  background: #f0f0f0;
-  color: #333;
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .cancel-button:hover {
-  background: #e0e0e0;
+  background: #e5e7eb;
+  transform: translateY(-1px);
 }
 
 .save-button {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.save-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.save-button:hover:not(:disabled)::before {
+  left: 100%;
 }
 
 .save-button:hover:not(:disabled) {
-  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
 }
 
 .save-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .small-modal {

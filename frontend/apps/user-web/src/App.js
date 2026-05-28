@@ -119,7 +119,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/sso/callback" element={<SsoCallback />} />
+        <Route path="/oauth2/callback" element={<SsoCallback />} />
         
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
